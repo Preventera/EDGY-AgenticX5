@@ -1,0 +1,197 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Installation: Dépendances",
+            "type": "shell",
+            "command": "pip install -r requirements.txt && pip install -r requirements-dev.txt",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Tests: Tous",
+            "type": "shell",
+            "command": "pytest tests/ -v --cov=src --cov-report=html --cov-report=term",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Tests: Unitaires",
+            "type": "shell",
+            "command": "pytest tests/unit/ -v --cov=src",
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Tests: Intégration",
+            "type": "shell",
+            "command": "pytest tests/integration/ -v -s",
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Code Quality: Black (Format)",
+            "type": "shell",
+            "command": "black src/ tests/",
+            "group": "build",
+            "presentation": {
+                "reveal": "silent"
+            }
+        },
+        {
+            "label": "Code Quality: isort (Imports)",
+            "type": "shell",
+            "command": "isort src/ tests/",
+            "group": "build",
+            "presentation": {
+                "reveal": "silent"
+            }
+        },
+        {
+            "label": "Code Quality: Flake8 (Lint)",
+            "type": "shell",
+            "command": "flake8 src/ tests/ --max-line-length=100 --extend-ignore=E203,W503",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Code Quality: Pylint",
+            "type": "shell",
+            "command": "pylint src/ --max-line-length=100",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Code Quality: MyPy (Type Check)",
+            "type": "shell",
+            "command": "mypy src/ --ignore-missing-imports",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Code Quality: Tout",
+            "type": "shell",
+            "command": "black src/ tests/ && isort src/ tests/ && flake8 src/ tests/ --max-line-length=100 && mypy src/ --ignore-missing-imports",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            },
+            "dependsOrder": "sequence"
+        },
+        {
+            "label": "Security: Bandit Scan",
+            "type": "shell",
+            "command": "bandit -r src/ -f json -o reports/security_scan.json && bandit -r src/",
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Security: Safety Check",
+            "type": "shell",
+            "command": "safety check --json",
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Documentation: Générer (Sphinx)",
+            "type": "shell",
+            "command": "cd docs && sphinx-build -b html . _build/html",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "SHACL: Valider Règles",
+            "type": "shell",
+            "command": "python -m src.shacl.validator --config configs/shacl/rules.ttl --data data/sample.ttl",
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Docker: Build Image",
+            "type": "shell",
+            "command": "docker build -t edgy-agentic:latest .",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Docker: Run Container",
+            "type": "shell",
+            "command": "docker run -p 8000:8000 --env-file .env edgy-agentic:latest",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Déploiement: Pre-commit Hooks",
+            "type": "shell",
+            "command": "pre-commit install && pre-commit run --all-files",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Performance: Profile Application",
+            "type": "shell",
+            "command": "python -m cProfile -o profile.stats main.py && python -c 'import pstats; p = pstats.Stats(\"profile.stats\"); p.sort_stats(\"cumulative\"); p.print_stats(20)'",
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Clean: Artifacts",
+            "type": "shell",
+            "command": "find . -type d -name __pycache__ -exec rm -rf {} + ; find . -type f -name '*.pyc' -delete ; rm -rf .pytest_cache .mypy_cache .coverage htmlcov dist build *.egg-info",
+            "group": "build",
+            "presentation": {
+                "reveal": "silent"
+            }
+        }
+    ]
+}

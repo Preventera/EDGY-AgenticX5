@@ -1,0 +1,110 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Agent de Monitoring",
+            "type": "python",
+            "request": "launch",
+            "module": "src.agents.monitoring_agent",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "ANTHROPIC_API_KEY": "${env:ANTHROPIC_API_KEY}",
+                "EDGY_ENV": "development",
+                "LOG_LEVEL": "DEBUG"
+            }
+        },
+        {
+            "name": "Python: Orchestrateur",
+            "type": "python",
+            "request": "launch",
+            "module": "src.agents.orchestrator_agent",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "ANTHROPIC_API_KEY": "${env:ANTHROPIC_API_KEY}",
+                "EDGY_ENV": "development",
+                "LOG_LEVEL": "DEBUG"
+            }
+        },
+        {
+            "name": "Python: Tests Unitaires",
+            "type": "python",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/unit",
+                "-v",
+                "--cov=src",
+                "--cov-report=html"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "EDGY_ENV": "testing"
+            }
+        },
+        {
+            "name": "Python: Tests d'Intégration",
+            "type": "python",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/integration",
+                "-v",
+                "-s"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "EDGY_ENV": "testing",
+                "ANTHROPIC_API_KEY": "${env:ANTHROPIC_API_KEY}"
+            }
+        },
+        {
+            "name": "Python: Application Complète",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "ANTHROPIC_API_KEY": "${env:ANTHROPIC_API_KEY}",
+                "EDGY_ENV": "development",
+                "LOG_LEVEL": "INFO"
+            }
+        },
+        {
+            "name": "Python: Fichier Actuel",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "EDGY_ENV": "development"
+            }
+        },
+        {
+            "name": "Python: Debug avec Attachement",
+            "type": "python",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}",
+                    "remoteRoot": "."
+                }
+            ]
+        }
+    ]
+}
