@@ -7,11 +7,15 @@ et alerte les superviseurs avec des recommandations préventives.
 
 import asyncio
 import json
+import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from pydantic import BaseModel, Field
+
 from .base_agent import BaseAgent, AgentMessage
 from ..utils.config import AgentConfig
+from pydantic import BaseModel, Field
 
 
 class RiskAlert(BaseModel):
@@ -422,3 +426,4 @@ Réponds sous forme de liste JSON:
         """Efface les alertes traitées."""
         self.active_alerts = []
         self.logger.info("Alertes effacées")
+
