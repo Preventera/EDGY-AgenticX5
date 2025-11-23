@@ -1,0 +1,329 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+@prefix edg: <http://example.org/edg-schema#> .
+@prefix sa: <http://safety-agentic.preventera.ai/ontology#> .
+@prefix shapes: <http://edgy.preventera.ai/shapes#> .
+
+# ============================================================
+# SHACL SHAPES - VALIDATION DES DONNÉES
+# ============================================================
+
+# ============================================================
+# SHAPES EDGY CORE
+# ============================================================
+
+# --- Shape pour edg:Entity ---
+shapes:EntityShape a sh:NodeShape ;
+    sh:targetClass edg:Entity ;
+    sh:property [
+        sh:path edg:hasName ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:minLength 1 ;
+        sh:message "Une entité doit avoir exactement un nom (string non vide)"@fr ;
+    ] ;
+    sh:property [
+        sh:path edg:createdDate ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:dateTime ;
+        sh:message "La date de création doit être un dateTime valide"@fr ;
+    ] ;
+    sh:property [
+        sh:path edg:lastModified ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:dateTime ;
+        sh:message "La date de modification doit être un dateTime valide"@fr ;
+    ] .
+
+
+# --- Shape pour edg:Person ---
+shapes:PersonShape a sh:NodeShape ;
+    sh:targetClass edg:Person ;
+    sh:property [
+        sh:path edg:hasName ;
+        sh:minCount 1 ;
+        sh:message "Une personne doit avoir un nom"@fr ;
+    ] .
+
+
+# --- Shape pour edg:Process ---
+shapes:ProcessShape a sh:NodeShape ;
+    sh:targetClass edg:Process ;
+    sh:property [
+        sh:path edg:hasName ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Un processus doit avoir exactement un nom"@fr ;
+    ] ;
+    sh:property [
+        sh:path edg:hasInput ;
+        sh:minCount 0 ;
+        sh:message "Les inputs d'un processus doivent être valides"@fr ;
+    ] ;
+    sh:property [
+        sh:path edg:hasOutput ;
+        sh:minCount 0 ;
+        sh:message "Les outputs d'un processus doivent être valides"@fr ;
+    ] .
+
+
+# --- Shape pour edg:RiskArea ---
+shapes:RiskAreaShape a sh:NodeShape ;
+    sh:targetClass edg:RiskArea ;
+    sh:property [
+        sh:path edg:hasName ;
+        sh:minCount 1 ;
+        sh:message "Une zone de risque doit avoir un nom"@fr ;
+    ] ;
+    sh:property [
+        sh:path edg:hasRiskLevel ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:in ("low" "medium" "high" "critical") ;
+        sh:message "Le niveau de risque doit être: low, medium, high ou critical"@fr ;
+    ] .
+
+
+# ============================================================
+# SHAPES SAFETY AGENTIC
+# ============================================================
+
+# --- Shape pour sa:Agent ---
+shapes:AgentShape a sh:NodeShape ;
+    sh:targetClass sa:Agent ;
+    sh:property [
+        sh:path edg:hasName ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:minLength 1 ;
+        sh:message "Un agent doit avoir exactement un nom (string non vide)"@fr ;
+    ] ;
+    sh:property [
+        sh:path sa:hasCapability ;
+        sh:minCount 1 ;
+        sh:class sa:AgentCapability ;
+        sh:message "Un agent doit avoir au moins une capacité"@fr ;
+    ] ;
+    sh:property [
+        sh:path sa:executesTask ;
+        sh:class sa:Task ;
+        sh:message "Les tâches exécutées doivent être de type sa:Task"@fr ;
+    ] .
+
+
+# --- Shape pour sa:Task ---
+shapes:TaskShape a sh:NodeShape ;
+    sh:targetClass sa:Task ;
+    sh:property [
+        sh:path edg:hasName ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Une tâche doit avoir exactement un nom"@fr ;
+    ] ;
+    sh:property [
+        sh:path sa:hasStatus ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:in ("pending" "running" "completed" "failed" "cancelled") ;
+        sh:message "Le statut doit être: pending, running, completed, failed ou cancelled"@fr ;
+    ] ;
+    sh:property [
+        sh:path sa:hasPriority ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 1 ;
+        sh:maxInclusive 10 ;
+        sh:message "La priorité doit être un entier entre 1 et 10"@fr ;
+    ] .
+
+
+# --- Shape pour sa:RiskEvent ---
+shapes:RiskEventShape a sh:NodeShape ;
+    sh:targetClass sa:RiskEvent ;
+    sh:property [
+        sh:path edg:hasName ;
+        sh:minCount 1 ;
+        sh:message "Un événement de risque doit avoir un nom"@fr ;
+    ] ;
+    sh:property [
+        sh:path sa:hasSeverity ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:in ("low" "medium" "high" "critical") ;
+        sh:message "La sévérité doit être: low, medium, high ou critical"@fr ;
+    ] ;
+    sh:property [
+        sh:path sa:detectedAt ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:dateTime ;
+        sh:message "Un événement doit avoir une date de détection (dateTime)"@fr ;
+    ] ;
+    sh:property [
+        sh:path sa:requires ;
+        sh:minCount 1 ;
+        sh:class sa:Mitigation ;
+        sh:message "Un événement de risque doit nécessiter au moins une mesure d'atténuation"@fr ;
+    ] .
+
+
+# --- Shape pour sa:Mitigation ---
+shapes:MitigationShape a sh:NodeShape ;
+    sh:targetClass sa:Mitigation ;
+    sh:property [
+        sh:path edg:hasDescription ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:minLength 10 ;
+        sh:message "Une mesure d'atténuation doit avoir une description (min 10 caractères)"@fr ;
+    ] ;
+    sh:property [
+        sh:path sa:hasEffectiveness ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:float ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        sh:message "L'efficacité doit être un float entre 0.0 et 1.0"@fr ;
+    ] ;
+    sh:property [
+        sh:path sa:implementedBy ;
+        sh:minCount 1 ;
+        sh:class sa:Agent ;
+        sh:message "Une mesure d'atténuation doit être implémentée par au moins un agent"@fr ;
+    ] ;
+    sh:property [
+        sh:path sa:implementedAt ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:dateTime ;
+        sh:message "La date d'implémentation doit être un dateTime valide"@fr ;
+    ] .
+
+
+# --- Shape pour sa:Observation ---
+shapes:ObservationShape a sh:NodeShape ;
+    sh:targetClass sa:Observation ;
+    sh:property [
+        sh:path sa:hasConfidence ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:float ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        sh:message "Une observation doit avoir un niveau de confiance entre 0.0 et 1.0"@fr ;
+    ] ;
+    sh:property [
+        sh:path sa:observedBy ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:class sa:Agent ;
+        sh:message "Une observation doit être faite par exactement un agent"@fr ;
+    ] .
+
+
+# ============================================================
+# SHAPES D'INTÉGRATION (EDGY ↔ SAFETY AGENTIC)
+# ============================================================
+
+# --- Validation: Agent surveille RiskArea ---
+shapes:AgentMonitorsRiskAreaShape a sh:NodeShape ;
+    sh:targetClass sa:Agent ;
+    sh:property [
+        sh:path sa:monitors ;
+        sh:class edg:RiskArea ;
+        sh:message "Un agent ne peut surveiller que des RiskArea valides"@fr ;
+    ] .
+
+
+# --- Validation: Agent protège Entity ---
+shapes:AgentProtectsEntityShape a sh:NodeShape ;
+    sh:targetClass sa:Agent ;
+    sh:property [
+        sh:path sa:protects ;
+        sh:class edg:Entity ;
+        sh:message "Un agent ne peut protéger que des Entity valides"@fr ;
+    ] .
+
+
+# --- Validation: RiskEvent affecte Process ---
+shapes:RiskEventAffectsProcessShape a sh:NodeShape ;
+    sh:targetClass sa:RiskEvent ;
+    sh:property [
+        sh:path sa:affectsProcess ;
+        sh:class edg:Process ;
+        sh:message "Un événement de risque ne peut affecter que des Process valides"@fr ;
+    ] .
+
+
+# ============================================================
+# CONTRAINTES MÉTIER AVANCÉES
+# ============================================================
+
+# --- Un Agent de Perception doit détecter des observations ---
+shapes:PerceptionAgentObservationShape a sh:NodeShape ;
+    sh:targetClass sa:PerceptionAgent ;
+    sh:sparql [
+        sh:message "Un agent de perception doit avoir détecté au moins une observation"@fr ;
+        sh:prefixes [
+            sh:declare [
+                sh:prefix "sa" ;
+                sh:namespace "http://safety-agentic.preventera.ai/ontology#"^^xsd:anyURI ;
+            ] ;
+        ] ;
+        sh:select """
+            SELECT $this
+            WHERE {
+                $this a sa:PerceptionAgent .
+                FILTER NOT EXISTS {
+                    ?obs sa:observedBy $this .
+                }
+            }
+        """ ;
+    ] .
+
+
+# --- Un RiskEvent de type Accident doit avoir une sévérité 'high' ou 'critical' ---
+shapes:AccidentSeverityShape a sh:NodeShape ;
+    sh:targetClass sa:Accident ;
+    sh:property [
+        sh:path sa:hasSeverity ;
+        sh:in ("high" "critical") ;
+        sh:message "Un accident doit avoir une sévérité 'high' ou 'critical'"@fr ;
+    ] .
+
+
+# --- Une tâche 'completed' doit avoir produit un output ---
+shapes:CompletedTaskOutputShape a sh:NodeShape ;
+    sh:targetClass sa:Task ;
+    sh:sparql [
+        sh:message "Une tâche terminée doit avoir produit au moins un output"@fr ;
+        sh:prefixes [
+            sh:declare [
+                sh:prefix "sa" ;
+                sh:namespace "http://safety-agentic.preventera.ai/ontology#"^^xsd:anyURI ;
+            ] ;
+        ] ;
+        sh:select """
+            SELECT $this
+            WHERE {
+                $this a sa:Task ;
+                      sa:hasStatus "completed" .
+                FILTER NOT EXISTS {
+                    $this sa:producesOutput ?output .
+                }
+            }
+        """ ;
+    ] .
+
+
+# ============================================================
+# FIN DES SHAPES SHACL
+# ============================================================
