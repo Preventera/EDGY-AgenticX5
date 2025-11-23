@@ -1,0 +1,245 @@
+# Configuration EDGY-AgenticX5
+# Paramètres pour l'architecture agentique multi-agent
+
+# ===== INFORMATIONS PROJET =====
+project:
+  name: "EDGY-AgenticX5"
+  version: "1.0.0"
+  author: "Mario Deshaies"
+  organization: "Preventera & GenAISafety"
+  description: "Architecture Agentique Multi-Agent pour la SST"
+
+# ===== API CLAUDE =====
+claude:
+  # Modèle Claude à utiliser
+  model: "claude-sonnet-4-20250514"
+  
+  # Clé API (à configurer via variable d'environnement)
+  # ANTHROPIC_API_KEY=votre_clé_ici
+  api_key_env: "ANTHROPIC_API_KEY"
+  
+  # Paramètres par défaut
+  max_tokens: 4096
+  temperature: 0.7
+  
+  # Timeouts (en secondes)
+  timeout: 30
+  retry_attempts: 3
+  retry_delay: 2
+
+# ===== AGENTS CONFIGURATION =====
+agents:
+  # MonitoringAgent
+  monitoring:
+    enabled: true
+    name: "MonitoringAgent"
+    polling_interval: 5  # secondes
+    thresholds:
+      temperature:
+        warning: 80
+        critical: 95
+        unit: "°C"
+      vibration:
+        warning: 5
+        critical: 10
+        unit: "mm/s"
+      pressure:
+        warning: 150
+        critical: 200
+        unit: "PSI"
+      noise:
+        warning: 85
+        critical: 95
+        unit: "dB"
+    
+  # OrchestratorAgent
+  orchestrator:
+    enabled: true
+    name: "OrchestratorAgent"
+    max_concurrent_tasks: 10
+    priority_levels:
+      - CRITICAL
+      - HIGH
+      - MEDIUM
+      - LOW
+    
+  # SecurityManager
+  security:
+    enabled: true
+    name: "SecurityManager"
+    audit_trail_max_size: 1000
+    validation_rules:
+      max_temperature: 100
+      max_vibration: 10
+      max_pressure: 200
+      require_human_approval:
+        - CRITICAL
+        - HIGH
+      blocked_actions:
+        - shutdown_all
+        - delete_data
+        - bypass_safety
+    compliance:
+      RGPD: true
+      CNESST: true
+      ISO_45001: true
+      LSST: true
+
+# ===== LOGGING =====
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # Fichiers de logs
+  files:
+    agents: "logs/agents.log"
+    security: "logs/security.log"
+    audit: "logs/audit.log"
+    errors: "logs/errors.log"
+  
+  # Rotation des logs
+  rotation:
+    max_bytes: 10485760  # 10 MB
+    backup_count: 5
+
+# ===== BASE DE DONNÉES =====
+database:
+  # Type de DB (sqlite, postgresql, mysql)
+  type: "sqlite"
+  
+  # SQLite
+  sqlite:
+    path: "data/edgy_agentic.db"
+  
+  # PostgreSQL (optionnel)
+  postgresql:
+    host: "localhost"
+    port: 5432
+    database: "edgy_agentic"
+    user: "edgy_user"
+    password_env: "DB_PASSWORD"
+
+# ===== SÉCURITÉ =====
+security:
+  # Chiffrement des données sensibles
+  encryption:
+    enabled: true
+    algorithm: "AES-256"
+  
+  # Authentification
+  authentication:
+    enabled: true
+    method: "token"  # token, oauth, ldap
+  
+  # Rate limiting
+  rate_limiting:
+    enabled: true
+    max_requests_per_minute: 100
+
+# ===== MONITORING & ALERTES =====
+monitoring:
+  # Système de monitoring
+  enabled: true
+  
+  # Métriques à collecter
+  metrics:
+    - cpu_usage
+    - memory_usage
+    - disk_usage
+    - api_latency
+    - error_rate
+  
+  # Alertes
+  alerts:
+    email:
+      enabled: false
+      smtp_server: "smtp.gmail.com"
+      smtp_port: 587
+      from: "alerts@preventera.online"
+      to:
+        - "admin@preventera.online"
+    
+    slack:
+      enabled: false
+      webhook_url_env: "SLACK_WEBHOOK_URL"
+    
+    sms:
+      enabled: false
+      provider: "twilio"
+
+# ===== INTÉGRATIONS =====
+integrations:
+  # SCADA
+  scada:
+    enabled: false
+    type: "modbus"  # modbus, opcua, bacnet
+    host: "192.168.1.100"
+    port: 502
+  
+  # IoT Sensors
+  iot:
+    enabled: false
+    protocol: "mqtt"  # mqtt, coap, http
+    broker: "mqtt.example.com"
+    port: 1883
+  
+  # ERP
+  erp:
+    enabled: false
+    type: "sap"  # sap, oracle, custom
+    api_url: "https://erp.example.com/api"
+
+# ===== EDGY FRAMEWORK =====
+edgy:
+  # Facettes activées
+  facets:
+    experience: true
+    enterprise: true
+    design: true
+    grounding: true
+  
+  # Fichiers de cartographie
+  mappings:
+    directory: "data/edgy_mappings"
+    formats:
+      - yaml
+      - json
+      - xml
+
+# ===== PERFORMANCE =====
+performance:
+  # Cache
+  cache:
+    enabled: true
+    type: "redis"  # redis, memcached, memory
+    ttl: 3600  # secondes
+  
+  # Workers parallèles
+  workers:
+    count: 4
+    max_queue_size: 1000
+
+# ===== DEVELOPMENT =====
+development:
+  debug_mode: false
+  mock_api: false
+  test_data: "tests/data"
+  
+# ===== PRODUCTION =====
+production:
+  # High Availability
+  ha:
+    enabled: false
+    replicas: 3
+  
+  # Load Balancing
+  load_balancing:
+    enabled: false
+    algorithm: "round_robin"
+  
+  # Backup
+  backup:
+    enabled: true
+    frequency: "daily"
+    retention_days: 30
+    destination: "backups/"

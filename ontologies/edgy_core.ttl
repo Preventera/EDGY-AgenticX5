@@ -1,0 +1,197 @@
+@prefix edg: <http://example.org/edg-schema#> .
+@prefix edgy: <http://edgy.preventera.ai/core#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+# ============================================================
+# MÉTADONNÉES ONTOLOGIE
+# ============================================================
+
+edgy: a owl:Ontology ;
+    dcterms:title "EDGY Core Ontology"@en ;
+    dcterms:title "Ontologie EDGY Core"@fr ;
+    dcterms:description "Ontologie pour la cartographie organisationnelle EDGY"@fr ;
+    dcterms:created "2025-11-23"^^xsd:date ;
+    dcterms:creator "Preventera / GenAISafety" ;
+    dcterms:contributor "Mario Deshaies" ;
+    owl:versionInfo "1.0.0" ;
+    rdfs:comment "Ontologie principale pour le framework EDGY de cartographie organisationnelle dans le contexte HSE/SST"@fr .
+
+# ============================================================
+# CLASSES PRINCIPALES
+# ============================================================
+
+edg:Entity a owl:Class ;
+    rdfs:label "Entité EDGY"@fr ;
+    rdfs:label "EDGY Entity"@en ;
+    rdfs:comment "Entité organisationnelle générique (personne, équipe, rôle, organisation)"@fr ;
+    rdfs:subClassOf owl:Thing .
+
+edg:Person a owl:Class ;
+    rdfs:label "Personne"@fr ;
+    rdfs:label "Person"@en ;
+    rdfs:comment "Individu dans l'organisation"@fr ;
+    rdfs:subClassOf edg:Entity .
+
+edg:Team a owl:Class ;
+    rdfs:label "Équipe"@fr ;
+    rdfs:label "Team"@en ;
+    rdfs:comment "Groupe de personnes collaborant"@fr ;
+    rdfs:subClassOf edg:Entity .
+
+edg:Role a owl:Class ;
+    rdfs:label "Rôle"@fr ;
+    rdfs:label "Role"@en ;
+    rdfs:comment "Fonction ou responsabilité organisationnelle"@fr ;
+    rdfs:subClassOf edg:Entity .
+
+edg:Organization a owl:Class ;
+    rdfs:label "Organisation"@fr ;
+    rdfs:label "Organization"@en ;
+    rdfs:comment "Structure organisationnelle complète"@fr ;
+    rdfs:subClassOf edg:Entity .
+
+edg:Process a owl:Class ;
+    rdfs:label "Processus"@fr ;
+    rdfs:label "Process"@en ;
+    rdfs:comment "Processus organisationnel ou métier"@fr ;
+    rdfs:subClassOf owl:Thing .
+
+edg:Task a owl:Class ;
+    rdfs:label "Tâche"@fr ;
+    rdfs:label "Task"@en ;
+    rdfs:comment "Tâche spécifique dans un processus"@fr ;
+    rdfs:subClassOf edg:Process .
+
+edg:RiskArea a owl:Class ;
+    rdfs:label "Zone de Risque"@fr ;
+    rdfs:label "Risk Area"@en ;
+    rdfs:comment "Zone ou situation identifiée avec risques SST"@fr ;
+    rdfs:subClassOf owl:Thing .
+
+edg:DataFlow a owl:Class ;
+    rdfs:label "Flux de Données"@fr ;
+    rdfs:label "Data Flow"@en ;
+    rdfs:comment "Flux d'information entre entités ou processus"@fr ;
+    rdfs:subClassOf owl:Thing .
+
+# ============================================================
+# PROPRIÉTÉS OBJECTALES (RELATIONS)
+# ============================================================
+
+edg:supervises a owl:ObjectProperty ;
+    rdfs:label "supervise"@fr ;
+    rdfs:label "supervises"@en ;
+    rdfs:comment "Relation de supervision entre entités"@fr ;
+    rdfs:domain edg:Entity ;
+    rdfs:range edg:Entity .
+
+edg:belongsTo a owl:ObjectProperty ;
+    rdfs:label "appartient à"@fr ;
+    rdfs:label "belongs to"@en ;
+    rdfs:comment "Indique l'appartenance à une équipe"@fr ;
+    rdfs:domain edg:Person ;
+    rdfs:range edg:Team .
+
+edg:hasRole a owl:ObjectProperty ;
+    rdfs:label "a le rôle"@fr ;
+    rdfs:label "has role"@en ;
+    rdfs:comment "Associe une personne à un rôle"@fr ;
+    rdfs:domain edg:Person ;
+    rdfs:range edg:Role .
+
+edg:executesProcess a owl:ObjectProperty ;
+    rdfs:label "exécute le processus"@fr ;
+    rdfs:label "executes process"@en ;
+    rdfs:comment "Indique qu'une entité exécute un processus"@fr ;
+    rdfs:domain edg:Entity ;
+    rdfs:range edg:Process .
+
+edg:hasInput a owl:ObjectProperty ;
+    rdfs:label "a comme entrée"@fr ;
+    rdfs:label "has input"@en ;
+    rdfs:comment "Flux de données en entrée d'un processus"@fr ;
+    rdfs:domain edg:Process ;
+    rdfs:range edg:DataFlow .
+
+edg:hasOutput a owl:ObjectProperty ;
+    rdfs:label "a comme sortie"@fr ;
+    rdfs:label "has output"@en ;
+    rdfs:comment "Flux de données en sortie d'un processus"@fr ;
+    rdfs:domain edg:Process ;
+    rdfs:range edg:DataFlow .
+
+edg:exposedTo a owl:ObjectProperty ;
+    rdfs:label "exposé à"@fr ;
+    rdfs:label "exposed to"@en ;
+    rdfs:comment "Indique qu'une entité est exposée à un risque"@fr ;
+    rdfs:domain edg:Entity ;
+    rdfs:range edg:RiskArea .
+
+edg:mitigates a owl:ObjectProperty ;
+    rdfs:label "atténue"@fr ;
+    rdfs:label "mitigates"@en ;
+    rdfs:comment "Processus qui atténue un risque"@fr ;
+    rdfs:domain edg:Process ;
+    rdfs:range edg:RiskArea .
+
+# ============================================================
+# PROPRIÉTÉS DE DONNÉES (ATTRIBUTS)
+# ============================================================
+
+edg:hasName a owl:DatatypeProperty ;
+    rdfs:label "a le nom"@fr ;
+    rdfs:label "has name"@en ;
+    rdfs:comment "Nom de l'entité"@fr ;
+    rdfs:domain edg:Entity ;
+    rdfs:range xsd:string .
+
+edg:hasDescription a owl:DatatypeProperty ;
+    rdfs:label "a la description"@fr ;
+    rdfs:label "has description"@en ;
+    rdfs:comment "Description textuelle"@fr ;
+    rdfs:range xsd:string .
+
+edg:hasRiskLevel a owl:DatatypeProperty ;
+    rdfs:label "a le niveau de risque"@fr ;
+    rdfs:label "has risk level"@en ;
+    rdfs:comment "Niveau de risque (low, medium, high, critical)"@fr ;
+    rdfs:domain edg:RiskArea ;
+    rdfs:range xsd:string .
+
+edg:createdDate a owl:DatatypeProperty ;
+    rdfs:label "date de création"@fr ;
+    rdfs:label "created date"@en ;
+    rdfs:comment "Date de création de l'entité"@fr ;
+    rdfs:range xsd:dateTime .
+
+edg:lastModified a owl:DatatypeProperty ;
+    rdfs:label "dernière modification"@fr ;
+    rdfs:label "last modified"@en ;
+    rdfs:comment "Date de dernière modification"@fr ;
+    rdfs:range xsd:dateTime .
+
+# ============================================================
+# CONTRAINTES OWL (CARDINALITÉS)
+# ============================================================
+
+edg:Person rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty edg:hasName ;
+    owl:minCardinality "1"^^xsd:nonNegativeInteger
+] .
+
+edg:Team rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty edg:hasName ;
+    owl:minCardinality "1"^^xsd:nonNegativeInteger
+] .
+
+edg:RiskArea rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty edg:hasRiskLevel ;
+    owl:cardinality "1"^^xsd:nonNegativeInteger
+] .

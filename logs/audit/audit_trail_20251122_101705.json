@@ -1,0 +1,26 @@
+[
+  {
+    "timestamp": "2025-11-22T10:16:57.337726",
+    "agent": "SecurityManager",
+    "event_type": "validation",
+    "details": {
+      "type": "validation",
+      "action": {
+        "type": "emergency_shutdown",
+        "severity": "CRITICAL",
+        "target": "M-47",
+        "reason": "Température et vibrations critiques",
+        "parameters": {
+          "temperature": 95,
+          "vibration": 8.2
+        }
+      },
+      "result": {
+        "status": "REQUIRES_APPROVAL",
+        "reason": "Action de sévérité CRITICAL nécessite approbation humaine",
+        "timestamp": "2025-11-22T10:16:57.337726"
+      }
+    },
+    "user": "system"
+  }
+]
