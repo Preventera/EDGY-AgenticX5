@@ -9,6 +9,8 @@ Fonctionnalités:
 - Statistiques Neo4j
 - Simulation d'événements
 - État des agents
+- Cartographie organisationnelle EDGY
+- Organigramme interactif
 """
 
 import streamlit as st
@@ -16,6 +18,19 @@ import requests
 import json
 from datetime import datetime, timedelta
 import time
+
+# Import des modules Cartographie et Organigramme EDGY
+try:
+    from dashboard_cartography import add_cartography_section, CARTOGRAPHY_CSS
+    CARTOGRAPHY_AVAILABLE = True
+except ImportError:
+    CARTOGRAPHY_AVAILABLE = False
+
+try:
+    from organigramme_interactif import render_org_chart_section
+    ORGCHART_AVAILABLE = True
+except ImportError:
+    ORGCHART_AVAILABLE = False
 
 # Configuration de la page
 st.set_page_config(
@@ -224,10 +239,10 @@ with st.sidebar:
     
     st.divider()
     
-    # Navigation
+    # Navigation - AJOUT DE CARTOGRAPHIE ET ORGANIGRAMME
     page = st.radio(
         "📍 Navigation",
-        ["🏠 Accueil", "📊 Monitoring", "🚨 Alertes", "🤖 Agents", "⚙️ Simulation"],
+        ["🏠 Accueil", "📊 Monitoring", "🚨 Alertes", "🤖 Agents", "⚙️ Simulation", "🗺️ Cartographie", "📈 Organigramme"],
         label_visibility="collapsed"
     )
     
@@ -249,6 +264,10 @@ with st.sidebar:
             orch_status = "✅" if data.get("components", {}).get("orchestrator") else "❌"
             st.metric("Orchestrator", orch_status)
         
+        # Status Cartographie
+        carto_status = "✅" if data.get("components", {}).get("cartography") else "❌"
+        st.metric("Cartographie", carto_status)
+        
         if "neo4j_stats" in data:
             st.caption(f"📊 {data['neo4j_stats'].get('nodes', 0)} nœuds | {data['neo4j_stats'].get('relationships', 0)} relations")
     else:
@@ -257,7 +276,7 @@ with st.sidebar:
     
     st.divider()
     st.caption(f"🕐 {datetime.now().strftime('%H:%M:%S')}")
-    st.caption("v1.0.0 | Sprint 2")
+    st.caption("v1.1.0 | Sprint 2 + Cartographie")
 
 # ============================================
 # PAGE: ACCUEIL
@@ -309,11 +328,11 @@ if page == "🏠 Accueil":
         st.markdown("""
         ```
         ┌─────────────────────────────────────────────────────────────┐
-        │                    EDGY-AgenticX5                           │
+        │                    EDGY-AgenticX5 v1.1.0                    │
         ├─────────────────────────────────────────────────────────────┤
         │  📡 Capteurs IoT  →  🤖 13 Agents  →  📊 Neo4j SafetyGraph │
         │                           ↓                                 │
-        │  🔄 LangGraph Orchestration  →  🚨 Alertes Temps Réel      │
+        │  🗺️ Cartographie EDGY  →  🔄 LangGraph Orchestration       │
         │                           ↓                                 │
         │  📋 Recommandations SST  →  👷 Superviseurs Terrain        │
         └─────────────────────────────────────────────────────────────┘
@@ -347,6 +366,13 @@ if page == "🏠 Accueil":
             if result["success"]:
                 st.success("✅ Simulation exécutée!")
                 st.json(result["data"])
+            else:
+                st.error(f"❌ {result['error']}")
+        
+        if st.button("🗺️ Créer Démo Cartographie", use_container_width=True):
+            result = api_call("/cartography/demo/populate", method="POST")
+            if result["success"]:
+                st.success("✅ Données cartographie créées!")
             else:
                 st.error(f"❌ {result['error']}")
         
@@ -651,13 +677,179 @@ elif page == "⚙️ Simulation":
                 st.error(f"❌ {result['error']}")
 
 # ============================================
+# PAGE: CARTOGRAPHIE
+# ============================================
+
+elif page == "🗺️ Cartographie":
+    st.markdown('<div class="main-header">🗺️ Cartographie Organisationnelle EDGY</div>', unsafe_allow_html=True)
+    
+    if CARTOGRAPHY_AVAILABLE:
+        st.markdown(CARTOGRAPHY_CSS, unsafe_allow_html=True)
+        add_cartography_section()
+    else:
+        st.warning("⚠️ Module dashboard_cartography.py non chargé. Utilisation du mode simplifié.")
+        
+        # Mode simplifié sans le module externe
+        st.subheader("📊 Statistiques Cartographie")
+        
+        stats_result = api_call("/cartography/stats")
+        if stats_result["success"]:
+            stats = stats_result["data"]
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("🏢 Organisations", stats.get("organizations", 0))
+            with col2:
+                st.metric("👥 Personnes", stats.get("persons", 0))
+            with col3:
+                st.metric("👔 Équipes", stats.get("teams", 0))
+            with col4:
+                st.metric("📍 Zones", stats.get("zones", 0))
+        
+        st.divider()
+        
+        # Actions
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("🎮 Créer données démo", use_container_width=True):
+                result = api_call("/cartography/demo/populate", method="POST")
+                if result["success"]:
+                    st.success("✅ Données créées!")
+                    st.rerun()
+                else:
+                    st.error(f"❌ {result['error']}")
+        
+        with col2:
+            if st.button("🔄 Sync Neo4j", use_container_width=True):
+                result = api_call("/cartography/sync-neo4j", method="POST")
+                if result["success"]:
+                    st.success("✅ Synchronisé!")
+                    st.json(result["data"].get("sync_stats", {}))
+                else:
+                    st.error(f"❌ {result['error']}")
+        
+        with col3:
+            if st.button("📤 Export RDF", use_container_width=True):
+                result = api_call("/cartography/export/rdf", method="POST")
+                if result["success"]:
+                    st.success(f"✅ {result['data'].get('triples_count', 0)} triples")
+                else:
+                    st.error(f"❌ {result['error']}")
+        
+        st.divider()
+        
+        # Afficher les données
+        tab1, tab2, tab3 = st.tabs(["👥 Personnes", "📍 Zones", "👔 Équipes"])
+        
+        with tab1:
+            persons = api_call("/cartography/persons")
+            if persons["success"] and persons["data"]:
+                for p in persons["data"]:
+                    st.markdown(f"**{p.get('name', 'N/A')}** - {p.get('department', 'N/A')} ({p.get('email', '')})")
+            else:
+                st.info("Aucune personne. Créez des données démo.")
+        
+        with tab2:
+            zones = api_call("/cartography/zones")
+            if zones["success"] and zones["data"]:
+                for z in zones["data"]:
+                    risk = z.get('risk_level', 'moyen')
+                    emoji = {'critique': '🔴', 'élevé': '🟠', 'moyen': '🟡', 'faible': '🟢'}.get(risk, '⚪')
+                    st.markdown(f"{emoji} **{z.get('name', 'N/A')}** - {risk}")
+            else:
+                st.info("Aucune zone. Créez des données démo.")
+        
+        with tab3:
+            teams = api_call("/cartography/teams")
+            if teams["success"] and teams["data"]:
+                for t in teams["data"]:
+                    st.markdown(f"👔 **{t.get('name', 'N/A')}** - {t.get('department', 'N/A')}")
+            else:
+                st.info("Aucune équipe. Créez des données démo.")
+
+# ============================================
+# PAGE: ORGANIGRAMME
+# ============================================
+
+elif page == "📈 Organigramme":
+    st.markdown('<div class="main-header">📈 Organigramme Interactif</div>', unsafe_allow_html=True)
+    
+    if ORGCHART_AVAILABLE:
+        render_org_chart_section()
+    else:
+        st.warning("⚠️ Module organigramme_interactif.py non chargé. Installation de Plotly requise.")
+        st.info("Installez avec: `pip install plotly networkx`")
+        
+        # Mode simplifié
+        st.subheader("📋 Structure Organisationnelle")
+        
+        # Récupérer les données
+        persons = api_call("/cartography/persons")
+        teams = api_call("/cartography/teams")
+        zones = api_call("/cartography/zones")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### 👥 Personnes par Département")
+            if persons["success"] and persons["data"]:
+                # Grouper par département
+                by_dept = {}
+                for p in persons["data"]:
+                    dept = p.get("department", "Autre")
+                    if dept not in by_dept:
+                        by_dept[dept] = []
+                    by_dept[dept].append(p)
+                
+                for dept, people in by_dept.items():
+                    with st.expander(f"🏢 {dept} ({len(people)} personnes)"):
+                        for p in people:
+                            supervisor = f" → Superviseur: {p.get('supervisor_id', 'Aucun')}" if p.get('supervisor_id') else ""
+                            st.markdown(f"- **{p.get('name')}**{supervisor}")
+            else:
+                st.info("Aucune donnée. Créez des données démo dans Cartographie.")
+        
+        with col2:
+            st.markdown("### 📍 Zones par Niveau de Risque")
+            if zones["success"] and zones["data"]:
+                # Grouper par risque
+                by_risk = {}
+                for z in zones["data"]:
+                    risk = z.get("risk_level", "moyen")
+                    if risk not in by_risk:
+                        by_risk[risk] = []
+                    by_risk[risk].append(z)
+                
+                risk_order = ['critique', 'élevé', 'moyen', 'faible', 'minimal']
+                emojis = {'critique': '🔴', 'élevé': '🟠', 'moyen': '🟡', 'faible': '🟢', 'minimal': '⚪'}
+                
+                for risk in risk_order:
+                    if risk in by_risk:
+                        with st.expander(f"{emojis.get(risk, '⚪')} {risk.upper()} ({len(by_risk[risk])} zones)"):
+                            for z in by_risk[risk]:
+                                hazards = ", ".join(z.get("hazards", [])[:3])
+                                st.markdown(f"- **{z.get('name')}**: {hazards}...")
+            else:
+                st.info("Aucune zone. Créez des données démo dans Cartographie.")
+        
+        st.divider()
+        
+        # Bouton pour créer les données
+        if st.button("🎮 Créer données démo", use_container_width=True):
+            result = api_call("/cartography/demo/populate", method="POST")
+            if result["success"]:
+                st.success("✅ Données créées! Rechargez la page.")
+                st.rerun()
+
+# ============================================
 # FOOTER
 # ============================================
 
 st.divider()
 st.markdown("""
 <div style="text-align: center; color: #6B7280; font-size: 0.8rem;">
-    🛡️ EDGY-AgenticX5 | Système de Prévention SST Multi-Agents<br>
+    🛡️ EDGY-AgenticX5 v1.1.0 | Système de Prévention SST Multi-Agents<br>
     Développé par GenAISafety / Preventera / SquadrAI<br>
     © 2025 - Tous droits réservés
 </div>
