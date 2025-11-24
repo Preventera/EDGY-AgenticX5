@@ -1148,6 +1148,209 @@ async def populate_demo_data():
     }
 
 
+
+# ============================================================
+# SYNCHRONISATION NEO4J
+# ============================================================
+
+@router.post("/sync-neo4j")
+async def sync_to_neo4j():
+    """
+    Synchroniser toutes les données de cartographie vers Neo4j SafetyGraph
+    
+    Injecte les entités EDGY dans Neo4j avec le label EDGYEntity
+    et crée toutes les relations organisationnelles.
+    """
+    try:
+        from edgy_core.transformers.neo4j_mapper import EDGYNeo4jMapper
+        
+        mapper = EDGYNeo4jMapper()
+        
+        if not mapper.is_connected():
+            raise HTTPException(
+                status_code=503,
+                detail="Impossible de se connecter à Neo4j"
+            )
+        
+        stats = {
+            "organizations": 0,
+            "persons": 0,
+            "teams": 0,
+            "roles": 0,
+            "processes": 0,
+            "zones": 0,
+            "relations": 0,
+            "errors": []
+        }
+        
+        try:
+            # Synchroniser les organisations
+            for org_id, org in store.organizations.items():
+                org_data = {**org, "created_at": org.get("created_at", datetime.now())}
+                if mapper.create_organization(org_data):
+                    stats["organizations"] += 1
+            
+            # Synchroniser les rôles
+            for role_id, role in store.roles.items():
+                role_data = {**role, "created_at": role.get("created_at", datetime.now())}
+                if mapper.create_role(role_data):
+                    stats["roles"] += 1
+            
+            # Synchroniser les équipes
+            for team_id, team in store.teams.items():
+                team_data = {**team, "created_at": team.get("created_at", datetime.now())}
+                if mapper.create_team(team_data):
+                    stats["teams"] += 1
+            
+            # Synchroniser les zones
+            for zone_id, zone in store.zones.items():
+                zone_data = {
+                    **zone,
+                    "risk_level": zone.get("risk_level", "moyen"),
+                    "created_at": zone.get("created_at", datetime.now())
+                }
+                if hasattr(zone_data["risk_level"], "value"):
+                    zone_data["risk_level"] = zone_data["risk_level"].value
+                if mapper.create_zone(zone_data):
+                    stats["zones"] += 1
+            
+            # Synchroniser les personnes et leurs relations
+            for person_id, person in store.persons.items():
+                person_data = {**person, "created_at": person.get("created_at", datetime.now())}
+                if mapper.create_person(person_data):
+                    stats["persons"] += 1
+                    
+                    for role_id in person.get("role_ids", []):
+                        if mapper.create_role_assignment(person["id"], role_id):
+                            stats["relations"] += 1
+                    
+                    for team_id in person.get("team_ids", []):
+                        if mapper.create_team_membership(person["id"], team_id):
+                            stats["relations"] += 1
+                    
+                    if person.get("supervisor_id"):
+                        if mapper.create_supervision_relation(person["supervisor_id"], person["id"]):
+                            stats["relations"] += 1
+            
+            # Synchroniser les processus
+            for process_id, process in store.processes.items():
+                process_data = {
+                    **process,
+                    "process_type": process.get("process_type", "inspection"),
+                    "created_at": process.get("created_at", datetime.now())
+                }
+                if hasattr(process_data["process_type"], "value"):
+                    process_data["process_type"] = process_data["process_type"].value
+                if mapper.create_process(process_data):
+                    stats["processes"] += 1
+                    
+                    for zone_id in process.get("zone_ids", []):
+                        if mapper.create_process_zone_link(process["id"], zone_id):
+                            stats["relations"] += 1
+                    
+                    if process.get("owner_id"):
+                        if mapper.create_process_owner(process["id"], process["owner_id"]):
+                            stats["relations"] += 1
+            
+            # Synchroniser les relations explicites
+            for relation in store.relations:
+                if mapper.create_relation(
+                    relation["source_id"],
+                    relation["target_id"],
+                    relation["relation_type"],
+                    relation.get("properties")
+                ):
+                    stats["relations"] += 1
+            
+            neo4j_stats = mapper.get_edgy_statistics()
+            
+            return {
+                "status": "success",
+                "message": "Synchronisation Neo4j réussie",
+                "sync_stats": stats,
+                "neo4j_stats": neo4j_stats
+            }
+            
+        finally:
+            mapper.close()
+            
+    except ImportError as e:
+        raise HTTPException(status_code=500, detail=f"Module neo4j_mapper non disponible: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur synchronisation: {str(e)}")
+
+
+@router.get("/neo4j-stats")
+async def get_neo4j_edgy_stats():
+    """Obtenir les statistiques des entités EDGY dans Neo4j"""
+    try:
+        from edgy_core.transformers.neo4j_mapper import EDGYNeo4jMapper
+        
+        mapper = EDGYNeo4jMapper()
+        
+        if not mapper.is_connected():
+            return {"status": "disconnected", "message": "Neo4j non disponible"}
+        
+        try:
+            stats = mapper.get_edgy_statistics()
+            structure = mapper.get_organization_structure()
+            zones = mapper.get_zones_with_risks()
+            
+            return {
+                "status": "connected",
+                "statistics": stats,
+                "organization_structure": structure,
+                "zones_by_risk": zones[:10]
+            }
+        finally:
+            mapper.close()
+            
+    except ImportError:
+        return {"status": "error", "message": "Module neo4j_mapper non disponible"}
+
+
+@router.delete("/neo4j-clear")
+async def clear_neo4j_edgy_entities():
+    """Supprimer toutes les entités EDGY de Neo4j (irréversible!)"""
+    try:
+        from edgy_core.transformers.neo4j_mapper import EDGYNeo4jMapper
+        
+        mapper = EDGYNeo4jMapper()
+        
+        if not mapper.is_connected():
+            raise HTTPException(status_code=503, detail="Neo4j non disponible")
+        
+        try:
+            deleted = mapper.clear_edgy_entities()
+            return {"status": "success", "message": f"{deleted} entités EDGY supprimées"}
+        finally:
+            mapper.close()
+            
+    except ImportError:
+        raise HTTPException(status_code=500, detail="Module neo4j_mapper non disponible")
+
+
+@router.get("/neo4j-supervision/{person_id}")
+async def get_supervision_chain(person_id: str):
+    """Obtenir la chaîne de supervision d'une personne"""
+    try:
+        from edgy_core.transformers.neo4j_mapper import EDGYNeo4jMapper
+        
+        mapper = EDGYNeo4jMapper()
+        
+        if not mapper.is_connected():
+            raise HTTPException(status_code=503, detail="Neo4j non disponible")
+        
+        try:
+            chain = mapper.get_supervision_chain(person_id)
+            return {"person_id": person_id, "supervision_chain": chain}
+        finally:
+            mapper.close()
+            
+    except ImportError:
+        raise HTTPException(status_code=500, detail="Module neo4j_mapper non disponible")
+
+
 # ============================================================
 # INTÉGRATION API PRINCIPALE
 # ============================================================
