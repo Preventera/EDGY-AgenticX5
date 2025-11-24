@@ -11,6 +11,7 @@ Endpoints:
 - /api/v1/alerts - Alertes actives
 - /api/v1/near-misses - Near-misses détectés
 - /api/v1/stats - Statistiques du système
+- /cartography/* - API de cartographie organisationnelle EDGY
 """
 
 import os
@@ -35,6 +36,14 @@ except ImportError:
     ORCHESTRATOR_AVAILABLE = False
     LANGGRAPH_AVAILABLE = False
 
+# Import de l'API Cartographie EDGY
+try:
+    from edgy_core.api.cartography_api import get_cartography_router
+    CARTOGRAPHY_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Cartography API not available: {e}")
+    CARTOGRAPHY_AVAILABLE = False
+
 
 # ============================================
 # CONFIGURATION
@@ -43,7 +52,7 @@ except ImportError:
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
-API_VERSION = "1.0.0"
+API_VERSION = "1.1.0"  # Version mise à jour avec Cartographie
 
 
 # ============================================
@@ -317,6 +326,12 @@ async def lifespan(app: FastAPI):
     else:
         print(f"  [WARN] Orchestrator non disponible")
     
+    # Status Cartographie
+    if CARTOGRAPHY_AVAILABLE:
+        print(f"  [OK] API Cartographie EDGY activee sur /cartography")
+    else:
+        print(f"  [WARN] API Cartographie non disponible")
+    
     print("=" * 50)
     print(f"  API prete sur http://localhost:8000")
     print(f"  Documentation: http://localhost:8000/docs")
@@ -333,7 +348,7 @@ async def lifespan(app: FastAPI):
 # Créer l'application
 app = FastAPI(
     title="EDGY-AgenticX5 API",
-    description="API REST pour le système de prévention SST multi-agents",
+    description="API REST pour le système de prévention SST multi-agents avec cartographie organisationnelle EDGY",
     version=API_VERSION,
     lifespan=lifespan
 )
@@ -349,18 +364,53 @@ app.add_middleware(
 
 
 # ============================================
+# ROUTERS ADDITIONNELS
+# ============================================
+
+# API Cartographie EDGY
+if CARTOGRAPHY_AVAILABLE:
+    app.include_router(get_cartography_router())
+
+
+# ============================================
 # ENDPOINTS
 # ============================================
 
 @app.get("/", tags=["Root"])
 async def root():
     """Page d'accueil de l'API"""
-    return {
+    endpoints = {
         "message": "EDGY-AgenticX5 API",
         "version": API_VERSION,
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
+        "endpoints": {
+            "workflow": "/api/v1/workflow/process",
+            "zones": "/api/v1/zones",
+            "risks": "/api/v1/risks",
+            "near_misses": "/api/v1/near-misses",
+            "stats": "/api/v1/stats",
+            "simulate": "/api/v1/simulate/critical"
+        }
     }
+    
+    # Ajouter les endpoints cartographie si disponibles
+    if CARTOGRAPHY_AVAILABLE:
+        endpoints["endpoints"]["cartography"] = {
+            "stats": "/cartography/stats",
+            "organizations": "/cartography/organizations",
+            "persons": "/cartography/persons",
+            "teams": "/cartography/teams",
+            "roles": "/cartography/roles",
+            "processes": "/cartography/processes",
+            "zones": "/cartography/zones",
+            "relations": "/cartography/relations",
+            "export_rdf": "/cartography/export/rdf",
+            "validate": "/cartography/validate",
+            "demo_populate": "/cartography/demo/populate"
+        }
+    
+    return endpoints
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
@@ -375,7 +425,8 @@ async def health_check():
         components={
             "neo4j": neo4j_stats.get("connected", False),
             "orchestrator": orchestrator is not None,
-            "langgraph": LANGGRAPH_AVAILABLE
+            "langgraph": LANGGRAPH_AVAILABLE,
+            "cartography": CARTOGRAPHY_AVAILABLE
         },
         neo4j_stats=neo4j_stats
     )
