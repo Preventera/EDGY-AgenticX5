@@ -61,6 +61,7 @@ class AgentState(BaseModel):
     error_count: int = 0
     success_count: int = 0
     context: Dict[str, Any] = Field(default_factory=dict)
+    metrics: Dict[str, Any] = Field(default_factory=dict) 
 
 
 class BaseAgent(abc.ABC):
