@@ -34,7 +34,7 @@ class PerceptionAgent(BaseAgent):
     ):
         super().__init__(
             agent_id=agent_id,
-            capabilities=[AgentCapability.PERCEPTION],
+            name="PerceptionAgent",
             config=config or {}
         )
         
@@ -87,7 +87,7 @@ class PerceptionAgent(BaseAgent):
                 "recommendations": list
             }
         """
-        self.update_status(AgentStatus.RUNNING)
+        self.update_state(AgentStatus.RUNNING)
         
         try:
             # Valider input
@@ -118,7 +118,7 @@ class PerceptionAgent(BaseAgent):
                 self.update_metrics("alerts_detected",
                                    self.state.metrics.get("alerts_detected", 0) + 1)
             
-            self.update_status(AgentStatus.COMPLETED)
+            self.update_state (AgentStatus.COMPLETED)
             
             return {
                 "observation_id": obs_id,
@@ -131,7 +131,7 @@ class PerceptionAgent(BaseAgent):
             }
             
         except Exception as e:
-            self.update_status(AgentStatus.FAILED)
+            self.update_state(AgentStatus.ERROR)
             return {
                 "error": str(e),
                 "agent_id": self.agent_id,

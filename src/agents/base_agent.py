@@ -13,10 +13,29 @@ from typing import Any, Dict, List, Optional
 
 import anthropic
 from pydantic import BaseModel, Field
+from enum import Enum
 
-from ..utils.logger import get_logger
-from ..utils.config import AgentConfig
-from ..utils.security import SecurityGuard
+
+class AgentStatus(str, Enum):
+    """Status possibles d'un agent"""
+    IDLE = "idle"
+    INITIALIZING = "initializing"
+    RUNNING = "running"
+    PAUSED = "paused"
+    ERROR = "error"
+    COMPLETED = "completed"
+
+
+class AgentCapability(str, Enum):
+    """Capacités des agents AgenticX5"""
+    PERCEPTION = "perception"
+    NORMALIZATION = "normalization"
+    ANALYSIS = "analysis"
+    RECOMMENDATION = "recommendation"
+    ORCHESTRATION = "orchestration"
+from utils.logger import get_logger
+from utils.config import AgentConfig
+from utils.security import SecurityGuard
 
 
 class AgentMessage(BaseModel):
