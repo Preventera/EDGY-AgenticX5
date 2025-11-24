@@ -164,17 +164,31 @@ class Neo4jConnector:
     def get_zones(self) -> List[Dict]:
         """Récupérer toutes les zones"""
         if self.mock_mode:
-            return [{"zone_id": "ZONE-DEMO", "nom": "Zone Demo", "niveau_risque": "medium"}]
+            return [{"zone_id": "ZONE-DEMO", "nom": "Zone Demo", "type": None, "niveau_risque": "medium", "risques": []}]
         
-        with self.driver.session() as session:
-            result = session.run("""
-                MATCH (z:Zone)
-                OPTIONAL MATCH (z)-[:A_RISQUE]->(r:Risque)
-                RETURN z.zone_id as zone_id, z.nom as nom, z.type as type,
-                       z.niveau_risque as niveau_risque,
-                       collect(r.description) as risques
-            """)
-            return [dict(record) for record in result]
+        try:
+            with self.driver.session() as session:
+                result = session.run("""
+                    MATCH (z:Zone)
+                    OPTIONAL MATCH (z)-[:A_RISQUE]->(r:Risque)
+                    RETURN z.zone_id as zone_id, z.nom as nom, z.type as type,
+                           z.niveau_risque as niveau_risque,
+                           collect(COALESCE(r.description, '')) as risques
+                """)
+                zones = []
+                for record in result:
+                    zone = {
+                        "zone_id": record["zone_id"] or "unknown",
+                        "nom": record["nom"],
+                        "type": record["type"],
+                        "niveau_risque": record["niveau_risque"],
+                        "risques": [r for r in record["risques"] if r]
+                    }
+                    zones.append(zone)
+                return zones
+        except Exception as e:
+            print(f"Erreur get_zones: {e}")
+            return []
     
     def get_risks(self) -> List[Dict]:
         """Récupérer tous les risques"""
