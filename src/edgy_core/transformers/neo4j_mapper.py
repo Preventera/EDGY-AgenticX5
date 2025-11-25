@@ -405,22 +405,34 @@ class EDGYNeo4jMapper:
         # Normaliser le type de relation
         rel_type = relation_type.upper().replace(" ", "_")
         
+        # Construire la clause SET pour les propriétés
+        set_clause = "SET r.created_at = datetime()"
+        if properties and len(properties) > 0:
+            # Ajouter chaque propriété individuellement
+            for key in properties.keys():
+                set_clause += f", r.{key} = ${key}"
+        
         query = f"""
         MATCH (source:EDGYEntity {{id: $source_id}})
         MATCH (target:EDGYEntity {{id: $target_id}})
         MERGE (source)-[r:{rel_type}]->(target)
-        SET r.created_at = datetime(),
-            r.properties = $properties
+        {set_clause}
         RETURN type(r) as rel_type
         """
         
+        # Préparer les paramètres
+        params = {
+            "source_id": source_id,
+            "target_id": target_id
+        }
+        
+        # Ajouter les propriétés aux paramètres
+        if properties:
+            params.update(properties)
+        
         try:
             with self.driver.session() as session:
-                result = session.run(query, {
-                    "source_id": source_id,
-                    "target_id": target_id,
-                    "properties": properties or {}
-                })
+                result = session.run(query, params)
                 record = result.single()
                 if record:
                     logger.info(f"✅ Relation créée: {source_id} -[{rel_type}]-> {target_id}")
