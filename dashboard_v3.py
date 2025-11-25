@@ -110,7 +110,7 @@ async def dashboard():
                 }
             };
             
-            // Render Org Chart
+            // Render Org Chart - Sunburst (better for hierarchy)
             const renderOrgChart = () => {
                 if (!orgChartRef.current || !data) return;
                 
@@ -118,63 +118,70 @@ async def dashboard():
                 const persons = data.persons || [];
                 const orgs = data.organizations || [];
                 
-                // Build hierarchy data for treemap
+                // Si pas de données, afficher un message
+                if (persons.length === 0 && teams.length === 0) {
+                    orgChartRef.current.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#666;font-size:18px;">Aucune donnee pour organigramme</div>';
+                    return;
+                }
+                
+                // Build hierarchy - IMPORTANT: single root
+                const ids = [];
                 const labels = [];
                 const parents = [];
-                const values = [];
                 const colors = [];
-                const textInfo = [];
                 
-                // Root
-                const orgName = orgs.length > 0 ? orgs[0].name : 'Organisation';
-                labels.push(orgName);
+                // Root - Organisation (ID unique)
+                const rootId = 'root';
+                const rootLabel = orgs.length > 0 ? (orgs[0].name || 'Organisation') : 'EDGY-AgenticX5';
+                ids.push(rootId);
+                labels.push(rootLabel);
                 parents.push('');
-                values.push(0);
                 colors.push('#3B82F6');
                 
-                // Teams
-                teams.forEach(team => {
-                    labels.push(team.name || 'Equipe');
-                    parents.push(orgName);
-                    values.push(0);
-                    colors.push('#10B981');
-                });
-                
-                // Persons by department
+                // Group persons by department
                 const deptMap = {};
                 persons.forEach(p => {
-                    const dept = p.department || 'Autre';
+                    const dept = p.department || 'Autres';
                     if (!deptMap[dept]) deptMap[dept] = [];
                     deptMap[dept].push(p);
                 });
                 
+                // Add departments as second level (with unique IDs)
+                const deptIds = {};
+                Object.keys(deptMap).forEach((dept, idx) => {
+                    const deptId = 'dept_' + idx;
+                    deptIds[dept] = deptId;
+                    ids.push(deptId);
+                    labels.push(dept);
+                    parents.push(rootId);  // Parent is root
+                    colors.push('#10B981');
+                });
+                
+                // Add persons under their department (with unique IDs)
+                let personIdx = 0;
                 Object.entries(deptMap).forEach(([dept, pList]) => {
-                    // Find matching team or use org
-                    const matchingTeam = teams.find(t => 
-                        t.name?.toLowerCase().includes(dept.toLowerCase()) ||
-                        dept.toLowerCase().includes(t.name?.toLowerCase() || '')
-                    );
-                    const parent = matchingTeam ? matchingTeam.name : orgName;
-                    
+                    const deptId = deptIds[dept];
                     pList.forEach(p => {
-                        labels.push(p.name || 'Personne');
-                        parents.push(parent);
-                        values.push(1);
+                        const personId = 'person_' + personIdx++;
+                        ids.push(personId);
+                        labels.push(p.name || 'Employe');
+                        parents.push(deptId);  // Parent is department
                         colors.push('#8B5CF6');
                     });
                 });
                 
                 const trace = {
-                    type: 'treemap',
+                    type: 'sunburst',
+                    ids: ids,
                     labels: labels,
                     parents: parents,
-                    values: values,
+                    branchvalues: 'total',
                     textinfo: 'label',
+                    insidetextorientation: 'radial',
                     marker: {
                         colors: colors,
                         line: { width: 2, color: 'white' }
                     },
-                    pathbar: { visible: true },
                     hovertemplate: '<b>%{label}</b><extra></extra>'
                 };
                 
@@ -184,8 +191,7 @@ async def dashboard():
                         font: { size: 20, color: '#1F2937' }
                     },
                     margin: { t: 50, l: 10, r: 10, b: 10 },
-                    paper_bgcolor: 'rgba(0,0,0,0)',
-                    plot_bgcolor: 'rgba(0,0,0,0)'
+                    paper_bgcolor: 'rgba(0,0,0,0)'
                 };
                 
                 Plotly.newPlot(orgChartRef.current, [trace], layout, {responsive: true});
