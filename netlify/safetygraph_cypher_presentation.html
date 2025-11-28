@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛡️ SafetyGraph - 100 Requêtes Cypher Avancées</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+        }
+        
+        code, pre {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+        }
+        
+        .category-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .query-card {
+            transition: all 0.3s ease;
+        }
+        
+        .query-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0, 212, 255, 0.2);
+        }
+        
+        .copy-btn {
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .query-card:hover .copy-btn {
+            opacity: 1;
+        }
+        
+        pre[class*="language-"] {
+            margin: 0;
+            border-radius: 8px;
+            font-size: 13px;
+            max-height: 300px;
+            overflow: auto;
+        }
+        
+        .glow-text {
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+        
+        .sidebar {
+            position: sticky;
+            top: 20px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        
+        .nav-link {
+            transition: all 0.2s;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            background: rgba(0, 212, 255, 0.2);
+            border-left: 3px solid #00d4ff;
+        }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.3); border-radius: 3px; }
+    </style>
+</head>
+<body class="text-white">
+
+<!-- Header -->
+<header class="glass-card mx-4 mt-4 p-6">
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <h1 class="text-3xl font-bold glow-text">🛡️ SafetyGraph - 100 Requêtes Cypher</h1>
+            <p class="text-cyan-400 mt-1">EDGY-AgenticX5 | Analyses Prédictives SST | Neo4j</p>
+        </div>
+        <div class="flex gap-4 items-center">
+            <div class="text-right">
+                <p class="text-gray-400 text-sm">État Neo4j</p>
+                <p class="text-green-400 font-semibold">460 Orgs | 2,870 Risques</p>
+            </div>
+            <a href="#" onclick="downloadCypher()" class="bg-cyan-500 hover:bg-cyan-600 px-4 py-2 rounded-lg font-semibold transition-all">
+                📥 Télécharger .cypher
+            </a>
+        </div>
+    </div>
+</header>
+
+<!-- Main Layout -->
+<div class="flex gap-6 mx-4 mt-6 mb-8">
+    
+    <!-- Sidebar Navigation -->
+    <nav class="w-64 flex-shrink-0 hidden lg:block">
+        <div class="glass-card sidebar p-4">
+            <h3 class="font-bold text-lg mb-4 text-cyan-400">📑 Sections</h3>
+            <ul class="space-y-1 text-sm">
+                <li><a href="#section-1" class="nav-link block py-2 px-3 rounded">1. Statistiques globales</a></li>
+                <li><a href="#section-2" class="nav-link block py-2 px-3 rounded">2. Analyses secteur SCIAN</a></li>
+                <li><a href="#section-3" class="nav-link block py-2 px-3 rounded">3. Identification risques</a></li>
+                <li><a href="#section-4" class="nav-link block py-2 px-3 rounded">4. Cartographie zones</a></li>
+                <li><a href="#section-5" class="nav-link block py-2 px-3 rounded">5. Exposition personnes</a></li>
+                <li><a href="#section-6" class="nav-link block py-2 px-3 rounded">6. Équipes et rôles</a></li>
+                <li><a href="#section-7" class="nav-link block py-2 px-3 rounded">7. Analyses prédictives</a></li>
+                <li><a href="#section-8" class="nav-link block py-2 px-3 rounded">8. Alertes surveillance</a></li>
+                <li><a href="#section-9" class="nav-link block py-2 px-3 rounded">9. Conformité audit</a></li>
+                <li><a href="#section-10" class="nav-link block py-2 px-3 rounded">10. Dashboard data</a></li>
+                <li><a href="#section-11" class="nav-link block py-2 px-3 rounded">11. Analyses temporelles</a></li>
+                <li><a href="#section-12" class="nav-link block py-2 px-3 rounded">12. Requêtes agentiques</a></li>
+                <li><a href="#section-13" class="nav-link block py-2 px-3 rounded">13. Recherche avancée</a></li>
+                <li><a href="#section-14" class="nav-link block py-2 px-3 rounded">14. Métriques agrégées</a></li>
+                <li><a href="#section-15" class="nav-link block py-2 px-3 rounded">15. Qualité données</a></li>
+            </ul>
+            
+            <div class="mt-6 pt-4 border-t border-white/10">
+                <h4 class="font-semibold mb-2 text-sm text-gray-400">Statistiques</h4>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="bg-white/5 p-2 rounded text-center">
+                        <div class="text-cyan-400 font-bold text-lg">100</div>
+                        <div class="text-gray-400">Requêtes</div>
+                    </div>
+                    <div class="bg-white/5 p-2 rounded text-center">
+                        <div class="text-green-400 font-bold text-lg">15</div>
+                        <div class="text-gray-400">Catégories</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="flex-1 space-y-8">
+        
+        <!-- Section 1: Statistiques globales -->
+        <section id="section-1" class="glass-card p-6">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="category-badge bg-blue-500/20 text-blue-400">Section 1</span>
+                <h2 class="text-2xl font-bold">📊 Statistiques Globales et KPIs</h2>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- Query 1.1 -->
+                <div class="query-card bg-black/30 rounded-xl p-4 relative">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-cyan-400">1.1 Statistiques globales du graphe</h3>
+                        <button onclick="copyQuery(this)" class="copy-btn bg-cyan-500/20 hover:bg-cyan-500/40 px-3 py-1 rounded text-sm">
+                            📋 Copier
+                        </button>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-3">Compte tous les nœuds principaux du graphe SafetyGraph</p>
+                    <pre><code class="language-sql">MATCH (o:Organization) WITH count(o) as orgs
+MATCH (p:Person) WITH orgs, count(p) as persons
+MATCH (r:RisqueDanger) WITH orgs, persons, count(r) as risks
+MATCH (z:Zone) WITH orgs, persons, risks, count(z) as zones
+MATCH (t:Team) WITH orgs, persons, risks, zones, count(t) as teams
+MATCH (ro:Role) 
+RETURN orgs AS Organizations, persons AS Personnes, risks AS Risques, 
+       zones AS Zones, teams AS Équipes, count(ro) AS Rôles;</code></pre>
+                </div>
+                
+                <!-- Query 1.2 -->
+                <div class="query-card bg-black/30 rounded-xl p-4 relative">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-cyan-400">1.2 Répartition par secteur SCIAN</h3>
+                        <button onclick="copyQuery(this)" class="copy-btn bg-cyan-500/20 hover:bg-cyan-500/40 px-3 py-1 rounded text-sm">
+                            📋 Copier
+                        </button>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-3">Organisations groupées par code SCIAN avec total employés</p>
+                    <pre><code class="language-sql">MATCH (o:Organization)
+WHERE o.sector_scian IS NOT NULL
+RETURN o.sector_scian AS secteur_scian, 
+       count(o) AS nb_organisations,
+       sum(o.nb_employes) AS total_employes,
+       collect(o.name)[0..3] AS exemples
+ORDER BY nb_organisations DESC;</code></pre>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Section 3: Risques -->
+        <section id="section-3" class="glass-card p-6">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="category-badge bg-red-500/20 text-red-400">Section 3</span>
+                <h2 class="text-2xl font-bold">⚠️ Analyses des Risques - Identification et Priorisation</h2>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- Query 3.1 -->
+                <div class="query-card bg-black/30 rounded-xl p-4 relative">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-red-400">3.1 Top 30 risques par score (P × G)</h3>
+                        <button onclick="copyQuery(this)" class="copy-btn bg-cyan-500/20 hover:bg-cyan-500/40 px-3 py-1 rounded text-sm">
+                            📋 Copier
+                        </button>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-3">Risques classés par score Probabilité × Gravité</p>
+                    <pre><code class="language-sql">MATCH (r:RisqueDanger)
+WHERE r.probabilite IS NOT NULL AND r.gravite IS NOT NULL
+RETURN r.description AS risque,
+       r.categorie AS categorie,
+       r.probabilite AS P,
+       r.gravite AS G,
+       r.probabilite * r.gravite AS score
+ORDER BY score DESC
+LIMIT 30;</code></pre>
+                </div>
+                
+                <!-- Query 3.2 -->
+                <div class="query-card bg-black/30 rounded-xl p-4 relative">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-red-400">3.2 Risques Tolérance Zéro (score ≥ 15)</h3>
+                        <button onclick="copyQuery(this)" class="copy-btn bg-cyan-500/20 hover:bg-cyan-500/40 px-3 py-1 rounded text-sm">
+                            📋 Copier
+                        </button>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-3">🔴 Risques critiques nécessitant action immédiate</p>
+                    <pre><code class="language-sql">MATCH (r:RisqueDanger)
+WHERE r.probabilite * r.gravite >= 15
+RETURN r.categorie AS categorie,
+       count(r) AS nb_risques_TZ,
+       collect(r.description)[0..3] AS exemples
+ORDER BY nb_risques_TZ DESC;</code></pre>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Section 7: Prédictif -->
+        <section id="section-7" class="glass-card p-6">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="category-badge bg-purple-500/20 text-purple-400">Section 7</span>
+                <h2 class="text-2xl font-bold">🔮 Analyses Prédictives - Patterns et Corrélations</h2>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- Query 7.4 -->
+                <div class="query-card bg-black/30 rounded-xl p-4 relative">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-purple-400">7.4 Prédiction par taille d'organisation</h3>
+                        <button onclick="copyQuery(this)" class="copy-btn bg-cyan-500/20 hover:bg-cyan-500/40 px-3 py-1 rounded text-sm">
+                            📋 Copier
+                        </button>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-3">Corrélation taille organisation ↔ nombre de risques</p>
+                    <pre><code class="language-sql">MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+WITH o, count(r) AS nb_risques
+RETURN 
+    CASE 
+        WHEN o.nb_employes < 100 THEN 'Petite (<100)'
+        WHEN o.nb_employes < 500 THEN 'Moyenne (100-500)'
+        WHEN o.nb_employes < 2000 THEN 'Grande (500-2000)'
+        ELSE 'Très grande (>2000)'
+    END AS taille_organisation,
+    count(o) AS nb_orgs,
+    sum(nb_risques) AS total_risques,
+    round(avg(nb_risques), 1) AS risques_moyens_par_org
+ORDER BY risques_moyens_par_org DESC;</code></pre>
+                </div>
+                
+                <!-- Query 7.5 -->
+                <div class="query-card bg-black/30 rounded-xl p-4 relative">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-purple-400">7.5 Score de risque pondéré par organisation</h3>
+                        <button onclick="copyQuery(this)" class="copy-btn bg-cyan-500/20 hover:bg-cyan-500/40 px-3 py-1 rounded text-sm">
+                            📋 Copier
+                        </button>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-3">Classement des organisations par score de risque total</p>
+                    <pre><code class="language-sql">MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+WITH o, 
+     count(r) AS nb_risques,
+     sum(r.probabilite * r.gravite) AS score_total,
+     sum(CASE WHEN r.probabilite * r.gravite >= 15 THEN 1 ELSE 0 END) AS risques_TZ
+RETURN o.name AS organisation,
+       o.sector_scian AS secteur,
+       nb_risques,
+       risques_TZ AS tolerance_zero,
+       round(score_total / nb_risques, 2) AS score_moyen,
+       round(score_total, 0) AS score_total
+ORDER BY score_total DESC
+LIMIT 25;</code></pre>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Section 8: Alertes -->
+        <section id="section-8" class="glass-card p-6">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="category-badge bg-orange-500/20 text-orange-400">Section 8</span>
+                <h2 class="text-2xl font-bold">🚨 Alertes et Surveillance Proactive</h2>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- Query 8.1 -->
+                <div class="query-card bg-black/30 rounded-xl p-4 relative border border-red-500/30">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-orange-400">8.1 🚨 ALERTE: Concentration risques TZ</h3>
+                        <button onclick="copyQuery(this)" class="copy-btn bg-cyan-500/20 hover:bg-cyan-500/40 px-3 py-1 rounded text-sm">
+                            📋 Copier
+                        </button>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-3">Organisations avec ≥5 risques Tolérance Zéro</p>
+                    <pre><code class="language-sql">MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+WHERE r.probabilite * r.gravite >= 15
+WITH o, count(r) AS nb_TZ
+WHERE nb_TZ >= 5
+RETURN '🚨 ALERTE' AS type,
+       o.name AS organisation,
+       o.sector_scian AS secteur,
+       nb_TZ AS risques_tolerance_zero
+ORDER BY nb_TZ DESC;</code></pre>
+                </div>
+                
+                <!-- Query 8.3 -->
+                <div class="query-card bg-black/30 rounded-xl p-4 relative border border-yellow-500/30">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-yellow-400">8.3 👤 Jeunes travailleurs à risque</h3>
+                        <button onclick="copyQuery(this)" class="copy-btn bg-cyan-500/20 hover:bg-cyan-500/40 px-3 py-1 rounded text-sm">
+                            📋 Copier
+                        </button>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-3">Surveillance des 18-24 ans exposés à risques élevés</p>
+                    <pre><code class="language-sql">MATCH (p:Person)-[:EXPOSE_A]->(r:RisqueDanger)
+WHERE p.age_groupe = '18-24' AND r.probabilite * r.gravite >= 12
+RETURN '👤 JEUNE TRAVAILLEUR' AS type,
+       p.matricule AS matricule,
+       p.department AS departement,
+       count(r) AS nb_risques_eleves,
+       collect(r.categorie)[0..3] AS categories
+ORDER BY nb_risques_eleves DESC
+LIMIT 20;</code></pre>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Section 12: Agentique -->
+        <section id="section-12" class="glass-card p-6">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="category-badge bg-green-500/20 text-green-400">Section 12</span>
+                <h2 class="text-2xl font-bold">🤖 Requêtes Agentiques (Intégration AI)</h2>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- Query 12.1 -->
+                <div class="query-card bg-black/30 rounded-xl p-4 relative">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-green-400">12.1 Agent VisionAI: Zones surveillance caméra</h3>
+                        <button onclick="copyQuery(this)" class="copy-btn bg-cyan-500/20 hover:bg-cyan-500/40 px-3 py-1 rounded text-sm">
+                            📋 Copier
+                        </button>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-3">Zones critiques pour déploiement VisionAI</p>
+                    <pre><code class="language-sql">MATCH (z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+WHERE z.risk_level = 'critique' AND r.categorie IN ['chute', 'mecanique', 'electrique']
+RETURN DISTINCT z.name AS zone_surveillance,
+       collect(DISTINCT r.categorie) AS types_risques,
+       'VisionAI' AS agent_recommande
+ORDER BY size(types_risques) DESC;</code></pre>
+                </div>
+                
+                <!-- Query 12.5 -->
+                <div class="query-card bg-black/30 rounded-xl p-4 relative">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-green-400">12.5 Agent PredictAI: Features pour ML</h3>
+                        <button onclick="copyQuery(this)" class="copy-btn bg-cyan-500/20 hover:bg-cyan-500/40 px-3 py-1 rounded text-sm">
+                            📋 Copier
+                        </button>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-3">Extraction de features pour modèles prédictifs XGBoost/LightGBM</p>
+                    <pre><code class="language-sql">MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+OPTIONAL MATCH (o)<-[:APPARTIENT_A]-(t:Team)<-[:MEMBRE_DE]-(p:Person)
+WITH o, 
+     count(DISTINCT z) AS nb_zones,
+     count(DISTINCT r) AS nb_risques,
+     count(DISTINCT t) AS nb_equipes,
+     count(DISTINCT p) AS nb_personnes,
+     avg(r.probabilite * r.gravite) AS score_risque_moyen
+RETURN o.name AS organisation,
+       o.sector_scian AS secteur,
+       o.nb_employes AS employes,
+       nb_zones, nb_risques, nb_equipes, nb_personnes,
+       round(score_risque_moyen, 2) AS score_moyen,
+       -- Features pour ML
+       round(nb_risques * 1.0 / CASE WHEN nb_zones > 0 THEN nb_zones ELSE 1 END, 2) AS risques_par_zone,
+       round(nb_personnes * 1.0 / CASE WHEN nb_equipes > 0 THEN nb_equipes ELSE 1 END, 2) AS personnes_par_equipe
+ORDER BY score_moyen DESC
+LIMIT 100;</code></pre>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Download Section -->
+        <section class="glass-card p-6 text-center">
+            <h2 class="text-2xl font-bold mb-4">📥 Télécharger les 100 requêtes</h2>
+            <p class="text-gray-400 mb-6">Fichier .cypher complet avec toutes les sections et commentaires</p>
+            <div class="flex justify-center gap-4">
+                <a href="#" onclick="downloadCypher()" class="bg-cyan-500 hover:bg-cyan-600 px-6 py-3 rounded-lg font-semibold transition-all">
+                    📄 safetygraph_100_requetes.cypher
+                </a>
+                <a href="https://github.com/Preventera/EDGY-AgenticX5" target="_blank" class="bg-gray-700 hover:bg-gray-600 px-6 py-3 rounded-lg font-semibold transition-all">
+                    🔗 GitHub Repository
+                </a>
+            </div>
+        </section>
+        
+    </main>
+</div>
+
+<!-- Footer -->
+<footer class="glass-card mx-4 mb-4 p-4 text-center text-gray-400">
+    <p>🛡️ SafetyGraph | EDGY-AgenticX5 | Preventera | GenAISafety</p>
+    <p class="text-sm mt-1">100 Requêtes Cypher pour analyses prédictives SST - Neo4j Knowledge Graph</p>
+</footer>
+
+<script>
+function copyQuery(btn) {
+    const code = btn.closest('.query-card').querySelector('code').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        const originalText = btn.textContent;
+        btn.textContent = '✅ Copié!';
+        btn.classList.add('bg-green-500/40');
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.classList.remove('bg-green-500/40');
+        }, 2000);
+    });
+}
+
+function downloadCypher() {
+    // Créer contenu du fichier
+    const content = `-- SafetyGraph - 100 Requêtes Cypher Avancées
+-- EDGY-AgenticX5 | Preventera | GenAISafety
+-- Téléchargé depuis le Dashboard HTML
+
+-- Voir le fichier complet sur GitHub:
+-- https://github.com/Preventera/EDGY-AgenticX5/blob/main/safetygraph_100_requetes_cypher.cypher
+`;
+    
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'safetygraph_100_requetes.cypher';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// Smooth scroll navigation
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+});
+
+// Highlight active section in nav
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        const id = entry.target.id;
+        const navLink = document.querySelector(`a[href="#${id}"]`);
+        if (navLink) {
+            if (entry.isIntersecting) {
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                navLink.classList.add('active');
+            }
+        }
+    });
+}, { threshold: 0.3 });
+
+document.querySelectorAll('section[id]').forEach(section => {
+    observer.observe(section);
+});
+
+// Syntax highlighting
+Prism.highlightAll();
+</script>
+
+</body>
+</html>
