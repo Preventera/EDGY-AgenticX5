@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🛡️ SafetyGraph Dashboard - 16 Secteurs SCIAN</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Plotly CDN avec intégrité -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -45,6 +45,14 @@
             font-weight: 500;
         }
         
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 300px;
+            color: #00d4ff;
+        }
+        
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
         ::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.3); border-radius: 4px; }
@@ -54,7 +62,7 @@
 
 <!-- Header -->
 <header class="glass-card mx-4 mt-4 p-6">
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
             <h1 class="text-3xl font-bold glow-text">🛡️ SafetyGraph Dashboard</h1>
             <p class="text-cyan-400 mt-1">EDGY-AgenticX5 | 16 Secteurs SCIAN | Neo4j Knowledge Graph</p>
@@ -70,32 +78,32 @@
 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mx-4 mt-6">
     <div class="glass-card kpi-card p-4 text-center">
         <div class="text-3xl mb-2">🏢</div>
-        <div class="text-3xl font-bold text-cyan-400" id="kpi-orgs">460</div>
+        <div class="text-3xl font-bold text-cyan-400">460</div>
         <div class="text-gray-400 text-sm">Organisations</div>
     </div>
     <div class="glass-card kpi-card p-4 text-center">
         <div class="text-3xl mb-2">👥</div>
-        <div class="text-3xl font-bold text-cyan-400" id="kpi-persons">3,926</div>
+        <div class="text-3xl font-bold text-cyan-400">3,926</div>
         <div class="text-gray-400 text-sm">Personnes</div>
     </div>
     <div class="glass-card kpi-card p-4 text-center">
         <div class="text-3xl mb-2">⚠️</div>
-        <div class="text-3xl font-bold text-orange-400" id="kpi-risks">2,870</div>
+        <div class="text-3xl font-bold text-orange-400">2,870</div>
         <div class="text-gray-400 text-sm">Risques</div>
     </div>
     <div class="glass-card kpi-card p-4 text-center">
         <div class="text-3xl mb-2">📍</div>
-        <div class="text-3xl font-bold text-green-400" id="kpi-zones">1,429</div>
+        <div class="text-3xl font-bold text-green-400">1,429</div>
         <div class="text-gray-400 text-sm">Zones</div>
     </div>
     <div class="glass-card kpi-card p-4 text-center">
         <div class="text-3xl mb-2">👔</div>
-        <div class="text-3xl font-bold text-purple-400" id="kpi-teams">1,125</div>
+        <div class="text-3xl font-bold text-purple-400">1,125</div>
         <div class="text-gray-400 text-sm">Équipes</div>
     </div>
     <div class="glass-card kpi-card p-4 text-center">
         <div class="text-3xl mb-2">🎯</div>
-        <div class="text-3xl font-bold text-pink-400" id="kpi-roles">2,363</div>
+        <div class="text-3xl font-bold text-pink-400">2,363</div>
         <div class="text-gray-400 text-sm">Rôles</div>
     </div>
 </div>
@@ -128,20 +136,20 @@
             <!-- Organisations par secteur -->
             <div class="glass-card p-6">
                 <h3 class="text-xl font-bold mb-4">📊 Organisations par secteur SCIAN</h3>
-                <div id="chart-sectors" style="height: 500px;"></div>
+                <div id="chart-sectors" class="loading">Chargement...</div>
             </div>
             
             <!-- Zones par niveau de risque -->
             <div class="glass-card p-6">
                 <h3 class="text-xl font-bold mb-4">🎯 Zones par niveau de risque</h3>
-                <div id="chart-zones" style="height: 500px;"></div>
+                <div id="chart-zones" class="loading">Chargement...</div>
             </div>
         </div>
         
         <!-- Risques par catégorie -->
         <div class="glass-card p-6 mt-6">
             <h3 class="text-xl font-bold mb-4">⚠️ Risques par catégorie</h3>
-            <div id="chart-risk-categories" style="height: 400px;"></div>
+            <div id="chart-risk-categories" class="loading">Chargement...</div>
         </div>
     </div>
 
@@ -150,13 +158,12 @@
         <div class="glass-card p-6">
             <h3 class="text-xl font-bold mb-6">🏭 16 Secteurs SCIAN couverts</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="sectors-grid">
-                <!-- Généré dynamiquement -->
             </div>
         </div>
         
         <div class="glass-card p-6 mt-6">
             <h3 class="text-xl font-bold mb-4">📊 Répartition des employés par secteur</h3>
-            <div id="chart-employees" style="height: 500px;"></div>
+            <div id="chart-employees" class="loading">Chargement...</div>
         </div>
     </div>
 
@@ -165,18 +172,18 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="glass-card p-6">
                 <h3 class="text-xl font-bold mb-4">🔴 Matrice Probabilité × Gravité</h3>
-                <div id="chart-risk-matrix" style="height: 500px;"></div>
+                <div id="chart-risk-matrix" class="loading">Chargement...</div>
             </div>
             <div class="glass-card p-6">
                 <h3 class="text-xl font-bold mb-4">📊 Distribution des scores de risque</h3>
-                <div id="chart-risk-dist" style="height: 500px;"></div>
+                <div id="chart-risk-dist" class="loading">Chargement...</div>
             </div>
         </div>
         
         <div class="glass-card p-6 mt-6">
             <h3 class="text-xl font-bold mb-4">🔴 Top 20 Risques Tolérance Zéro</h3>
             <div class="overflow-x-auto">
-                <table class="w-full text-left" id="risks-table">
+                <table class="w-full text-left">
                     <thead class="border-b border-white/10">
                         <tr>
                             <th class="py-3 px-4">Description</th>
@@ -187,7 +194,6 @@
                         </tr>
                     </thead>
                     <tbody id="risks-tbody">
-                        <!-- Généré dynamiquement -->
                     </tbody>
                 </table>
             </div>
@@ -198,7 +204,7 @@
     <div id="content-orgs" class="tab-content hidden">
         <div class="glass-card p-6">
             <h3 class="text-xl font-bold mb-4">🏆 Top 25 organisations (par employés)</h3>
-            <div id="chart-top-orgs" style="height: 700px;"></div>
+            <div id="chart-top-orgs" class="loading">Chargement...</div>
         </div>
     </div>
 
@@ -207,17 +213,17 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="glass-card p-6">
                 <h3 class="text-xl font-bold mb-4">👥 Distribution par groupe d'âge</h3>
-                <div id="chart-age" style="height: 400px;"></div>
+                <div id="chart-age" class="loading">Chargement...</div>
             </div>
             <div class="glass-card p-6">
                 <h3 class="text-xl font-bold mb-4">🎓 Certifications SST fréquentes</h3>
-                <div id="chart-certs" style="height: 400px;"></div>
+                <div id="chart-certs" class="loading">Chargement...</div>
             </div>
         </div>
         
         <div class="glass-card p-6 mt-6">
-            <h3 class="text-xl font-bold mb-4">🔗 Réseau Organisations-Zones-Équipes</h3>
-            <div id="chart-network" style="height: 500px;"></div>
+            <h3 class="text-xl font-bold mb-4">🔗 Réseau Organisations par secteur</h3>
+            <div id="chart-network" class="loading">Chargement...</div>
         </div>
     </div>
 
@@ -231,17 +237,8 @@
 
 <script>
 // ============================================================================
-// DONNÉES SAFETYGRAPH (État actuel Neo4j)
+// DONNÉES SAFETYGRAPH (État actuel Neo4j - 28 novembre 2025)
 // ============================================================================
-
-const STATS = {
-    orgs: 460,
-    persons: 3926,
-    risks: 2870,
-    zones: 1429,
-    teams: 1125,
-    roles: 2363
-};
 
 const SECTEURS = [
     { scian: "54", nom: "💼 Services professionnels", orgs: 45, employes: 38000, couleur: "#6A5ACD" },
@@ -262,23 +259,23 @@ const SECTEURS = [
 ];
 
 const ZONES_RISQUE = [
-    { niveau: "critique", count: 180, couleur: "#DC143C" },
-    { niveau: "eleve", count: 420, couleur: "#FF8C00" },
-    { niveau: "moyen", count: 650, couleur: "#FFD700" },
-    { niveau: "faible", count: 179, couleur: "#32CD32" }
+    { niveau: "Critique", count: 180, couleur: "#DC143C" },
+    { niveau: "Élevé", count: 420, couleur: "#FF8C00" },
+    { niveau: "Moyen", count: 650, couleur: "#FFD700" },
+    { niveau: "Faible", count: 179, couleur: "#32CD32" }
 ];
 
 const CATEGORIES_RISQUE = [
-    { cat: "ergonomique", count: 680, score: 12 },
-    { cat: "mecanique", count: 520, score: 14 },
-    { cat: "chimique", count: 380, score: 15 },
-    { cat: "chute", count: 340, score: 16 },
-    { cat: "psychosocial", count: 320, score: 11 },
-    { cat: "electrique", count: 180, score: 18 },
-    { cat: "thermique", count: 150, score: 10 },
-    { cat: "violence", count: 120, score: 14 },
-    { cat: "routier", count: 100, score: 16 },
-    { cat: "bruit", count: 80, score: 8 }
+    { cat: "Ergonomique", count: 680, score: 12 },
+    { cat: "Mécanique", count: 520, score: 14 },
+    { cat: "Chimique", count: 380, score: 15 },
+    { cat: "Chute", count: 340, score: 16 },
+    { cat: "Psychosocial", count: 320, score: 11 },
+    { cat: "Électrique", count: 180, score: 18 },
+    { cat: "Thermique", count: 150, score: 10 },
+    { cat: "Violence", count: 120, score: 14 },
+    { cat: "Routier", count: 100, score: 16 },
+    { cat: "Bruit", count: 80, score: 8 }
 ];
 
 const TOP_ORGS = [
@@ -310,26 +307,26 @@ const TOP_ORGS = [
 ];
 
 const RISQUES_TZ = [
-    { desc: "Électrocution haute tension (735kV)", cat: "electrique", p: 3, g: 5, score: 15 },
-    { desc: "Arc électrique flash", cat: "electrique", p: 3, g: 5, score: 15 },
-    { desc: "Écrasement chariot élévateur", cat: "mecanique", p: 3, g: 5, score: 15 },
-    { desc: "Explosion gaz naturel", cat: "chimique", p: 3, g: 5, score: 15 },
-    { desc: "Chute hauteur (>3m)", cat: "chute", p: 3, g: 5, score: 15 },
-    { desc: "Effondrement excavation", cat: "mecanique", p: 3, g: 5, score: 15 },
-    { desc: "Asphyxie espace clos (H2S)", cat: "chimique", p: 3, g: 5, score: 15 },
-    { desc: "Collision équipement lourd", cat: "mecanique", p: 3, g: 5, score: 15 },
-    { desc: "Incendie/explosion solvants", cat: "chimique", p: 3, g: 5, score: 15 },
-    { desc: "Noyade (réservoir, barrage)", cat: "physique", p: 3, g: 5, score: 15 },
-    { desc: "Exposition amiante", cat: "chimique", p: 2, g: 5, score: 10 },
-    { desc: "Renversement véhicule minier", cat: "mecanique", p: 3, g: 5, score: 15 },
-    { desc: "Éboulement souterrain", cat: "mecanique", p: 2, g: 5, score: 10 },
-    { desc: "Chute palette/rayonnage", cat: "mecanique", p: 4, g: 5, score: 20 },
-    { desc: "Vol à main armée", cat: "violence", p: 3, g: 5, score: 15 },
-    { desc: "Brûlure four industriel", cat: "thermique", p: 3, g: 5, score: 15 },
-    { desc: "Coincement machine rotative", cat: "mecanique", p: 3, g: 5, score: 15 },
-    { desc: "Intoxication monoxyde carbone", cat: "chimique", p: 2, g: 5, score: 10 },
-    { desc: "Radiation (laboratoire)", cat: "physique", p: 2, g: 5, score: 10 },
-    { desc: "Écrasement presse hydraulique", cat: "mecanique", p: 2, g: 5, score: 10 }
+    { desc: "Chute palette/rayonnage", cat: "Mécanique", p: 4, g: 5, score: 20 },
+    { desc: "Électrocution haute tension (735kV)", cat: "Électrique", p: 3, g: 5, score: 15 },
+    { desc: "Arc électrique flash", cat: "Électrique", p: 3, g: 5, score: 15 },
+    { desc: "Écrasement chariot élévateur", cat: "Mécanique", p: 3, g: 5, score: 15 },
+    { desc: "Explosion gaz naturel", cat: "Chimique", p: 3, g: 5, score: 15 },
+    { desc: "Chute hauteur (>3m)", cat: "Chute", p: 3, g: 5, score: 15 },
+    { desc: "Effondrement excavation", cat: "Mécanique", p: 3, g: 5, score: 15 },
+    { desc: "Asphyxie espace clos (H2S)", cat: "Chimique", p: 3, g: 5, score: 15 },
+    { desc: "Collision équipement lourd", cat: "Mécanique", p: 3, g: 5, score: 15 },
+    { desc: "Incendie/explosion solvants", cat: "Chimique", p: 3, g: 5, score: 15 },
+    { desc: "Noyade (réservoir, barrage)", cat: "Physique", p: 3, g: 5, score: 15 },
+    { desc: "Renversement véhicule minier", cat: "Mécanique", p: 3, g: 5, score: 15 },
+    { desc: "Vol à main armée", cat: "Violence", p: 3, g: 5, score: 15 },
+    { desc: "Brûlure four industriel", cat: "Thermique", p: 3, g: 5, score: 15 },
+    { desc: "Coincement machine rotative", cat: "Mécanique", p: 3, g: 5, score: 15 },
+    { desc: "Exposition amiante", cat: "Chimique", p: 2, g: 5, score: 10 },
+    { desc: "Éboulement souterrain", cat: "Mécanique", p: 2, g: 5, score: 10 },
+    { desc: "Intoxication monoxyde carbone", cat: "Chimique", p: 2, g: 5, score: 10 },
+    { desc: "Radiation (laboratoire)", cat: "Physique", p: 2, g: 5, score: 10 },
+    { desc: "Écrasement presse hydraulique", cat: "Mécanique", p: 2, g: 5, score: 10 }
 ];
 
 const AGE_DISTRIBUTION = [
@@ -365,8 +362,8 @@ const CERTIFICATIONS = [
 const plotlyLayout = {
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
-    font: { color: '#ffffff', family: 'Inter' },
-    margin: { t: 40, r: 20, b: 60, l: 150 }
+    font: { color: '#ffffff', family: 'Inter, sans-serif' },
+    margin: { t: 40, r: 30, b: 60, l: 160 }
 };
 
 const plotlyConfig = {
@@ -375,7 +372,7 @@ const plotlyConfig = {
 };
 
 // ============================================================================
-// RENDERING FUNCTIONS
+// TAB NAVIGATION
 // ============================================================================
 
 function showTab(tabName) {
@@ -388,17 +385,23 @@ function showTab(tabName) {
     });
     
     // Show selected content
-    document.getElementById(`content-${tabName}`).classList.remove('hidden');
+    document.getElementById('content-' + tabName).classList.remove('hidden');
     // Activate tab
-    const tab = document.getElementById(`tab-${tabName}`);
+    const tab = document.getElementById('tab-' + tabName);
     tab.classList.add('tab-active');
     tab.classList.remove('glass-card');
     
     // Render charts for the tab
-    renderCharts(tabName);
+    setTimeout(function() { renderCharts(tabName); }, 100);
 }
 
 function renderCharts(tab) {
+    if (typeof Plotly === 'undefined') {
+        console.error('Plotly not loaded yet');
+        setTimeout(function() { renderCharts(tab); }, 500);
+        return;
+    }
+    
     switch(tab) {
         case 'overview':
             renderSectorsChart();
@@ -425,266 +428,298 @@ function renderCharts(tab) {
     }
 }
 
+// ============================================================================
+// CHART RENDERING FUNCTIONS
+// ============================================================================
+
 function renderSectorsChart() {
-    const data = [{
+    var data = [{
         type: 'bar',
-        y: SECTEURS.map(s => s.nom),
-        x: SECTEURS.map(s => s.orgs),
+        y: SECTEURS.map(function(s) { return s.nom; }),
+        x: SECTEURS.map(function(s) { return s.orgs; }),
         orientation: 'h',
-        marker: { color: SECTEURS.map(s => s.couleur) },
-        text: SECTEURS.map(s => s.orgs),
-        textposition: 'outside'
+        marker: { color: SECTEURS.map(function(s) { return s.couleur; }) },
+        text: SECTEURS.map(function(s) { return s.orgs; }),
+        textposition: 'outside',
+        hovertemplate: '%{y}: %{x} organisations<extra></extra>'
     }];
     
-    Plotly.newPlot('chart-sectors', data, {
-        ...plotlyLayout,
+    var layout = Object.assign({}, plotlyLayout, {
+        height: 500,
         xaxis: { title: 'Nombre d\'organisations', gridcolor: 'rgba(255,255,255,0.1)' },
         yaxis: { automargin: true }
-    }, plotlyConfig);
+    });
+    
+    Plotly.newPlot('chart-sectors', data, layout, plotlyConfig);
 }
 
 function renderZonesChart() {
-    const data = [{
+    var data = [{
         type: 'pie',
-        values: ZONES_RISQUE.map(z => z.count),
-        labels: ZONES_RISQUE.map(z => z.niveau.charAt(0).toUpperCase() + z.niveau.slice(1)),
-        marker: { colors: ZONES_RISQUE.map(z => z.couleur) },
+        values: ZONES_RISQUE.map(function(z) { return z.count; }),
+        labels: ZONES_RISQUE.map(function(z) { return z.niveau; }),
+        marker: { colors: ZONES_RISQUE.map(function(z) { return z.couleur; }) },
         hole: 0.4,
         textinfo: 'label+percent',
-        textfont: { color: 'white' }
+        textfont: { color: 'white', size: 14 },
+        hovertemplate: '%{label}: %{value} zones (%{percent})<extra></extra>'
     }];
     
-    Plotly.newPlot('chart-zones', data, {
-        ...plotlyLayout,
+    var layout = Object.assign({}, plotlyLayout, {
+        height: 500,
         showlegend: true,
-        legend: { orientation: 'h', y: -0.1 }
-    }, plotlyConfig);
+        legend: { orientation: 'h', y: -0.1, font: { color: 'white' } }
+    });
+    
+    Plotly.newPlot('chart-zones', data, layout, plotlyConfig);
 }
 
 function renderRiskCategoriesChart() {
-    const data = [{
-        type: 'treemap',
-        labels: CATEGORIES_RISQUE.map(c => c.cat),
-        parents: CATEGORIES_RISQUE.map(() => ''),
-        values: CATEGORIES_RISQUE.map(c => c.count),
-        marker: {
-            colors: CATEGORIES_RISQUE.map(c => c.score),
-            colorscale: 'RdYlGn',
-            reversescale: true,
+    var data = [{
+        type: 'bar',
+        x: CATEGORIES_RISQUE.map(function(c) { return c.cat; }),
+        y: CATEGORIES_RISQUE.map(function(c) { return c.count; }),
+        marker: { 
+            color: CATEGORIES_RISQUE.map(function(c) { return c.score; }),
+            colorscale: [[0, '#32CD32'], [0.5, '#FFD700'], [1, '#DC143C']],
             showscale: true,
-            colorbar: { title: 'Score' }
+            colorbar: { title: 'Score', tickfont: { color: 'white' }, titlefont: { color: 'white' } }
         },
-        textinfo: 'label+value',
-        textfont: { size: 14 }
+        text: CATEGORIES_RISQUE.map(function(c) { return c.count; }),
+        textposition: 'outside',
+        hovertemplate: '%{x}: %{y} risques (score: %{marker.color})<extra></extra>'
     }];
     
-    Plotly.newPlot('chart-risk-categories', data, {
-        ...plotlyLayout,
-        margin: { t: 20, r: 20, b: 20, l: 20 }
-    }, plotlyConfig);
+    var layout = Object.assign({}, plotlyLayout, {
+        height: 400,
+        xaxis: { tickangle: -45 },
+        yaxis: { title: 'Nombre de risques', gridcolor: 'rgba(255,255,255,0.1)' },
+        margin: { t: 40, r: 80, b: 120, l: 60 }
+    });
+    
+    Plotly.newPlot('chart-risk-categories', data, layout, plotlyConfig);
 }
 
 function renderSectorsGrid() {
-    const grid = document.getElementById('sectors-grid');
-    grid.innerHTML = SECTEURS.map(s => `
-        <div class="glass-card p-4 hover:scale-105 transition-transform cursor-pointer" 
-             style="border-left: 4px solid ${s.couleur}">
-            <div class="text-2xl mb-2">${s.nom.split(' ')[0]}</div>
-            <div class="font-bold text-lg">${s.nom.substring(s.nom.indexOf(' ') + 1)}</div>
-            <div class="text-gray-400 text-sm">SCIAN ${s.scian}</div>
-            <div class="mt-3 flex justify-between">
-                <div>
-                    <div class="text-2xl font-bold text-cyan-400">${s.orgs}</div>
-                    <div class="text-xs text-gray-400">Orgs</div>
-                </div>
-                <div>
-                    <div class="text-2xl font-bold text-green-400">${(s.employes/1000).toFixed(0)}k</div>
-                    <div class="text-xs text-gray-400">Employés</div>
-                </div>
-            </div>
-        </div>
-    `).join('');
+    var grid = document.getElementById('sectors-grid');
+    grid.innerHTML = SECTEURS.map(function(s) {
+        return '<div class="glass-card p-4 hover:scale-105 transition-transform cursor-pointer" style="border-left: 4px solid ' + s.couleur + '">' +
+            '<div class="text-2xl mb-2">' + s.nom.split(' ')[0] + '</div>' +
+            '<div class="font-bold text-lg">' + s.nom.substring(s.nom.indexOf(' ') + 1) + '</div>' +
+            '<div class="text-gray-400 text-sm">SCIAN ' + s.scian + '</div>' +
+            '<div class="mt-3 flex justify-between">' +
+                '<div><div class="text-2xl font-bold text-cyan-400">' + s.orgs + '</div><div class="text-xs text-gray-400">Orgs</div></div>' +
+                '<div><div class="text-2xl font-bold text-green-400">' + (s.employes/1000).toFixed(0) + 'k</div><div class="text-xs text-gray-400">Employés</div></div>' +
+            '</div>' +
+        '</div>';
+    }).join('');
 }
 
 function renderEmployeesChart() {
-    const data = [{
+    var data = [{
         type: 'bar',
-        x: SECTEURS.map(s => s.nom),
-        y: SECTEURS.map(s => s.employes),
-        marker: { color: SECTEURS.map(s => s.couleur) },
-        text: SECTEURS.map(s => `${(s.employes/1000).toFixed(0)}k`),
-        textposition: 'outside'
+        x: SECTEURS.map(function(s) { return s.nom; }),
+        y: SECTEURS.map(function(s) { return s.employes; }),
+        marker: { color: SECTEURS.map(function(s) { return s.couleur; }) },
+        text: SECTEURS.map(function(s) { return (s.employes/1000).toFixed(0) + 'k'; }),
+        textposition: 'outside',
+        hovertemplate: '%{x}: %{y:,} employés<extra></extra>'
     }];
     
-    Plotly.newPlot('chart-employees', data, {
-        ...plotlyLayout,
+    var layout = Object.assign({}, plotlyLayout, {
+        height: 500,
         xaxis: { tickangle: -45 },
-        yaxis: { title: 'Nombre d\'employés' },
-        margin: { ...plotlyLayout.margin, b: 150 }
-    }, plotlyConfig);
+        yaxis: { title: 'Nombre d\'employés', gridcolor: 'rgba(255,255,255,0.1)' },
+        margin: { t: 40, r: 30, b: 180, l: 80 }
+    });
+    
+    Plotly.newPlot('chart-employees', data, layout, plotlyConfig);
 }
 
 function renderRiskMatrix() {
-    const data = [{
+    var data = [{
         type: 'scatter',
         mode: 'markers',
-        x: RISQUES_TZ.map(r => r.p),
-        y: RISQUES_TZ.map(r => r.g),
+        x: RISQUES_TZ.map(function(r) { return r.p; }),
+        y: RISQUES_TZ.map(function(r) { return r.g; }),
         marker: {
-            size: RISQUES_TZ.map(r => r.score * 2),
-            color: RISQUES_TZ.map(r => r.score),
-            colorscale: 'RdYlGn',
-            reversescale: true,
+            size: RISQUES_TZ.map(function(r) { return r.score * 2.5; }),
+            color: RISQUES_TZ.map(function(r) { return r.score; }),
+            colorscale: [[0, '#32CD32'], [0.5, '#FFD700'], [1, '#DC143C']],
             showscale: true,
-            colorbar: { title: 'Score' }
+            colorbar: { title: 'Score', tickfont: { color: 'white' }, titlefont: { color: 'white' } }
         },
-        text: RISQUES_TZ.map(r => r.desc),
-        hovertemplate: '%{text}<br>P: %{x}, G: %{y}<extra></extra>'
+        text: RISQUES_TZ.map(function(r) { return r.desc; }),
+        hovertemplate: '<b>%{text}</b><br>P: %{x}, G: %{y}<br>Score: %{marker.color}<extra></extra>'
     }];
     
-    Plotly.newPlot('chart-risk-matrix', data, {
-        ...plotlyLayout,
-        xaxis: { title: 'Probabilité', range: [0, 6], dtick: 1 },
-        yaxis: { title: 'Gravité', range: [0, 6], dtick: 1 },
-        margin: { ...plotlyLayout.margin, l: 60 }
-    }, plotlyConfig);
+    var layout = Object.assign({}, plotlyLayout, {
+        height: 500,
+        xaxis: { title: 'Probabilité', range: [0, 6], dtick: 1, gridcolor: 'rgba(255,255,255,0.1)' },
+        yaxis: { title: 'Gravité', range: [0, 6], dtick: 1, gridcolor: 'rgba(255,255,255,0.1)' },
+        margin: { t: 40, r: 80, b: 60, l: 60 }
+    });
+    
+    Plotly.newPlot('chart-risk-matrix', data, layout, plotlyConfig);
 }
 
 function renderRiskDistribution() {
-    const scores = RISQUES_TZ.map(r => r.score);
-    const data = [{
+    var scores = RISQUES_TZ.map(function(r) { return r.score; });
+    var data = [{
         type: 'histogram',
         x: scores,
         marker: { color: '#00d4ff' },
-        nbinsx: 10
+        nbinsx: 8,
+        hovertemplate: 'Score %{x}: %{y} risques<extra></extra>'
     }];
     
-    Plotly.newPlot('chart-risk-dist', data, {
-        ...plotlyLayout,
-        xaxis: { title: 'Score (P × G)' },
-        yaxis: { title: 'Nombre de risques' },
-        margin: { ...plotlyLayout.margin, l: 60 }
-    }, plotlyConfig);
+    var layout = Object.assign({}, plotlyLayout, {
+        height: 500,
+        xaxis: { title: 'Score (P × G)', gridcolor: 'rgba(255,255,255,0.1)' },
+        yaxis: { title: 'Nombre de risques', gridcolor: 'rgba(255,255,255,0.1)' },
+        margin: { t: 40, r: 30, b: 60, l: 60 }
+    });
+    
+    Plotly.newPlot('chart-risk-dist', data, layout, plotlyConfig);
 }
 
 function renderRisksTable() {
-    const tbody = document.getElementById('risks-tbody');
-    tbody.innerHTML = RISQUES_TZ.map(r => `
-        <tr class="border-b border-white/5 hover:bg-white/5">
-            <td class="py-3 px-4">${r.desc}</td>
-            <td class="py-3 px-4">
-                <span class="sector-badge bg-orange-500/20 text-orange-400">${r.cat}</span>
-            </td>
-            <td class="py-3 px-4 text-center">${r.p}</td>
-            <td class="py-3 px-4 text-center">${r.g}</td>
-            <td class="py-3 px-4 text-center">
-                <span class="font-bold ${r.score >= 15 ? 'text-red-400' : 'text-orange-400'}">${r.score}</span>
-            </td>
-        </tr>
-    `).join('');
+    var tbody = document.getElementById('risks-tbody');
+    tbody.innerHTML = RISQUES_TZ.map(function(r) {
+        var scoreClass = r.score >= 15 ? 'text-red-400' : 'text-orange-400';
+        return '<tr class="border-b border-white/5 hover:bg-white/5">' +
+            '<td class="py-3 px-4">' + r.desc + '</td>' +
+            '<td class="py-3 px-4"><span class="sector-badge bg-orange-500/20 text-orange-400">' + r.cat + '</span></td>' +
+            '<td class="py-3 px-4 text-center">' + r.p + '</td>' +
+            '<td class="py-3 px-4 text-center">' + r.g + '</td>' +
+            '<td class="py-3 px-4 text-center"><span class="font-bold ' + scoreClass + '">' + r.score + '</span></td>' +
+        '</tr>';
+    }).join('');
 }
 
 function renderTopOrgsChart() {
-    const data = [{
+    var colors = TOP_ORGS.map(function(o) {
+        var secteur = SECTEURS.find(function(s) { return s.scian === o.secteur; });
+        return secteur ? secteur.couleur : '#00d4ff';
+    });
+    
+    var data = [{
         type: 'bar',
-        y: TOP_ORGS.map(o => o.nom),
-        x: TOP_ORGS.map(o => o.employes),
+        y: TOP_ORGS.map(function(o) { return o.nom; }),
+        x: TOP_ORGS.map(function(o) { return o.employes; }),
         orientation: 'h',
-        marker: { 
-            color: TOP_ORGS.map(o => {
-                const secteur = SECTEURS.find(s => s.scian === o.secteur);
-                return secteur ? secteur.couleur : '#00d4ff';
-            })
-        },
-        text: TOP_ORGS.map(o => `${(o.employes/1000).toFixed(1)}k`),
-        textposition: 'outside'
+        marker: { color: colors },
+        text: TOP_ORGS.map(function(o) { return (o.employes/1000).toFixed(1) + 'k'; }),
+        textposition: 'outside',
+        hovertemplate: '<b>%{y}</b><br>%{x:,} employés<extra></extra>'
     }];
     
-    Plotly.newPlot('chart-top-orgs', data, {
-        ...plotlyLayout,
-        xaxis: { title: 'Nombre d\'employés' },
+    var layout = Object.assign({}, plotlyLayout, {
+        height: 750,
+        xaxis: { title: 'Nombre d\'employés', gridcolor: 'rgba(255,255,255,0.1)' },
         yaxis: { automargin: true },
-        margin: { ...plotlyLayout.margin, l: 200 }
-    }, plotlyConfig);
+        margin: { t: 40, r: 60, b: 60, l: 200 }
+    });
+    
+    Plotly.newPlot('chart-top-orgs', data, layout, plotlyConfig);
 }
 
 function renderAgeChart() {
-    const data = [{
+    var colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'];
+    var data = [{
         type: 'bar',
-        x: AGE_DISTRIBUTION.map(a => a.age),
-        y: AGE_DISTRIBUTION.map(a => a.count),
-        marker: { 
-            color: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7']
-        },
-        text: AGE_DISTRIBUTION.map(a => a.count),
-        textposition: 'outside'
+        x: AGE_DISTRIBUTION.map(function(a) { return a.age; }),
+        y: AGE_DISTRIBUTION.map(function(a) { return a.count; }),
+        marker: { color: colors },
+        text: AGE_DISTRIBUTION.map(function(a) { return a.count; }),
+        textposition: 'outside',
+        hovertemplate: '%{x}: %{y} personnes<extra></extra>'
     }];
     
-    Plotly.newPlot('chart-age', data, {
-        ...plotlyLayout,
+    var layout = Object.assign({}, plotlyLayout, {
+        height: 400,
         xaxis: { title: 'Groupe d\'âge' },
-        yaxis: { title: 'Nombre de personnes' },
-        margin: { ...plotlyLayout.margin, l: 60 }
-    }, plotlyConfig);
+        yaxis: { title: 'Nombre de personnes', gridcolor: 'rgba(255,255,255,0.1)' },
+        margin: { t: 40, r: 30, b: 60, l: 60 }
+    });
+    
+    Plotly.newPlot('chart-age', data, layout, plotlyConfig);
 }
 
 function renderCertsChart() {
-    const data = [{
+    var colors = CERTIFICATIONS.map(function(_, i) { 
+        return 'hsl(' + (120 + i * 15) + ', 70%, 50%)'; 
+    });
+    
+    var data = [{
         type: 'bar',
-        y: CERTIFICATIONS.map(c => c.cert),
-        x: CERTIFICATIONS.map(c => c.count),
+        y: CERTIFICATIONS.map(function(c) { return c.cert; }),
+        x: CERTIFICATIONS.map(function(c) { return c.count; }),
         orientation: 'h',
-        marker: { 
-            color: CERTIFICATIONS.map((_, i) => `hsl(${120 + i * 15}, 70%, 50%)`)
-        }
+        marker: { color: colors },
+        text: CERTIFICATIONS.map(function(c) { return c.count; }),
+        textposition: 'outside',
+        hovertemplate: '%{y}: %{x} personnes<extra></extra>'
     }];
     
-    Plotly.newPlot('chart-certs', data, {
-        ...plotlyLayout,
-        xaxis: { title: 'Nombre' },
+    var layout = Object.assign({}, plotlyLayout, {
+        height: 500,
+        xaxis: { title: 'Nombre de personnes', gridcolor: 'rgba(255,255,255,0.1)' },
         yaxis: { automargin: true },
-        margin: { ...plotlyLayout.margin, l: 180 }
-    }, plotlyConfig);
+        margin: { t: 40, r: 60, b: 60, l: 180 }
+    });
+    
+    Plotly.newPlot('chart-certs', data, layout, plotlyConfig);
 }
 
 function renderNetworkChart() {
-    const data = [{
+    var data = [{
         type: 'scatter',
-        mode: 'markers',
-        x: SECTEURS.map((_, i) => Math.cos(i * 2 * Math.PI / SECTEURS.length) * 100),
-        y: SECTEURS.map((_, i) => Math.sin(i * 2 * Math.PI / SECTEURS.length) * 100),
+        mode: 'markers+text',
+        x: SECTEURS.map(function(_, i) { return Math.cos(i * 2 * Math.PI / SECTEURS.length) * 100; }),
+        y: SECTEURS.map(function(_, i) { return Math.sin(i * 2 * Math.PI / SECTEURS.length) * 100; }),
         marker: {
-            size: SECTEURS.map(s => Math.sqrt(s.orgs) * 8),
-            color: SECTEURS.map(s => s.couleur),
+            size: SECTEURS.map(function(s) { return Math.sqrt(s.orgs) * 10; }),
+            color: SECTEURS.map(function(s) { return s.couleur; }),
             line: { width: 2, color: 'white' }
         },
-        text: SECTEURS.map(s => `${s.nom}<br>${s.orgs} orgs`),
-        hoverinfo: 'text'
+        text: SECTEURS.map(function(s) { return s.nom.split(' ')[0]; }),
+        textposition: 'top center',
+        textfont: { size: 16 },
+        hovertemplate: '<b>%{text}</b><br>%{customdata} organisations<extra></extra>',
+        customdata: SECTEURS.map(function(s) { return s.orgs; })
     }];
     
-    Plotly.newPlot('chart-network', data, {
-        ...plotlyLayout,
+    var layout = Object.assign({}, plotlyLayout, {
+        height: 500,
         xaxis: { visible: false, range: [-150, 150] },
-        yaxis: { visible: false, range: [-150, 150] },
+        yaxis: { visible: false, range: [-150, 150], scaleanchor: 'x' },
         margin: { t: 20, r: 20, b: 20, l: 20 }
-    }, plotlyConfig);
+    });
+    
+    Plotly.newPlot('chart-network', data, layout, plotlyConfig);
 }
 
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
 
-document.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('load', function() {
     // Update date
     document.getElementById('lastUpdate').textContent = new Date().toLocaleDateString('fr-CA', {
         year: 'numeric', month: 'long', day: 'numeric'
     });
     
-    // Render initial charts
-    renderCharts('overview');
+    // Wait for Plotly to be ready
+    function initCharts() {
+        if (typeof Plotly !== 'undefined') {
+            renderCharts('overview');
+        } else {
+            setTimeout(initCharts, 200);
+        }
+    }
     
-    // Initialize Lucide icons
-    lucide.createIcons();
+    initCharts();
 });
 </script>
 
