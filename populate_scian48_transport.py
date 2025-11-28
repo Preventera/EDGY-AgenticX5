@@ -1,27 +1,10 @@
 #!/usr/bin/env python3
 """
 🛡️ Script de Population Neo4j - Secteurs SCIAN 48-49
-Transport et entreposage
+Transport et entreposage - VERSION CORRIGÉE
 EDGY-AgenticX5 | SafetyGraph | Preventera
 
-Basé sur les données CNESST:
-- Déplacements routiers dans le cadre du travail
-- Transport routier de matières dangereuses
-- Association du camionnage du Québec (ACQ)
-- Statistiques lésions professionnelles
-
-Secteurs inclus:
-- 481: Transport aérien
-- 482: Transport ferroviaire
-- 483: Transport par eau
-- 484: Transport par camion
-- 485: Transport en commun et transport terrestre de voyageurs
-- 486: Transport par pipeline
-- 487: Transport de tourisme et d'agrément
-- 488: Activités de soutien au transport
-- 491: Services postaux
-- 492: Messageries et services de messagers
-- 493: Entreposage
+CORRECTION: Remplacé "bas" par "moyen" (RiskLevel enum)
 """
 
 import os
@@ -75,10 +58,10 @@ SECTEURS_SCIAN_48 = {
         "zones": [
             {"nom": "Cabine semi-remorque", "risk": "eleve", "dangers": ["Collision", "Fatigue", "Isolement"], "epi": ["Ceinture", "ELD"]},
             {"nom": "Aire de repos routière", "risk": "moyen", "dangers": ["Vol", "Agression"], "epi": ["Téléphone", "Éclairage"]},
-            {"nom": "Poste frontière", "risk": "bas", "dangers": ["Attente", "Stress"], "epi": ["Documentation"]},
+            {"nom": "Poste frontière", "risk": "moyen", "dangers": ["Attente", "Stress"], "epi": ["Documentation"]},
             {"nom": "Terminal de transbordement", "risk": "eleve", "dangers": ["Chariot élévateur", "Recul"], "epi": ["Dossard", "Casque"]},
         ],
-        "roles": ["Chauffeur longue distance classe 1", "Owner-operator", "Chauffeur d'équipe", "Répartiteur", "Directeur transport"],
+        "roles": ["Chauffeur longue distance classe 1", "Owner-operator", "Chauffeur équipe", "Répartiteur", "Directeur transport"],
         "certs": ["Permis classe 1", "FAST/PEP", "Heures de service", "ELD", "SIMDUT", "Matières dangereuses"],
     },
     
@@ -98,7 +81,7 @@ SECTEURS_SCIAN_48 = {
             {"nom": "Camion déménagement", "risk": "eleve", "dangers": ["Chute rampe", "Écrasement"], "epi": ["Chaussures", "Gants"]},
             {"nom": "Entrepôt stockage", "risk": "moyen", "dangers": ["Rayonnage", "Chariot"], "epi": ["Casque", "Dossard"]},
         ],
-        "roles": ["Déménageur", "Chef d'équipe déménagement", "Chauffeur-déménageur", "Estimateur", "Directeur opérations"],
+        "roles": ["Déménageur", "Chef équipe déménagement", "Chauffeur-déménageur", "Estimateur", "Directeur opérations"],
         "certs": ["Manutention sécuritaire", "SIMDUT", "Chariot élévateur", "Premiers soins"],
     },
     
@@ -143,7 +126,7 @@ SECTEURS_SCIAN_48 = {
     },
     
     "488519": {
-        "nom": "Autres activités de soutien au transport routier",
+        "nom": "Remorquage et dépannage routier",
         "description": "Remorquage, dépannage routier",
         "risques": [
             {"desc": "Frappé par véhicule sur route", "cat": "routier", "prob": 3, "grav": 5},
@@ -179,7 +162,7 @@ SECTEURS_SCIAN_48 = {
             {"nom": "Quai de chargement", "risk": "eleve", "dangers": ["Recul camion", "Hayon"], "epi": ["Dossard", "Casque"]},
             {"nom": "Zone préparation commandes", "risk": "moyen", "dangers": ["TMS", "Coupures"], "epi": ["Gants", "Ceinture lombaire"]},
         ],
-        "roles": ["Cariste", "Préparateur commandes", "Réceptionnaire", "Expéditeur", "Chef d'entrepôt", "Superviseur quai"],
+        "roles": ["Cariste", "Préparateur commandes", "Réceptionnaire", "Expéditeur", "Chef entrepôt", "Superviseur quai"],
         "certs": ["Chariot élévateur", "SIMDUT", "Travail hauteur", "Premiers soins", "Manutention"],
     },
     
@@ -276,7 +259,7 @@ def populate_scian48():
     """Peuple SafetyGraph avec les secteurs SCIAN 48-49 (Transport et Entreposage)"""
     
     print("=" * 70)
-    print("🚛📦 POPULATION SAFETYGRAPH - SCIAN 48-49")
+    print("🚛📦 POPULATION SAFETYGRAPH - SCIAN 48-49 (CORRIGÉ)")
     print("    Transport et Entreposage")
     print("=" * 70)
     print(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
