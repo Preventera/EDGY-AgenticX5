@@ -23,10 +23,6 @@
             border-radius: 16px;
         }
         
-        .glass-card:hover {
-            border-color: rgba(0, 212, 255, 0.3);
-        }
-        
         .gradient-text {
             background: linear-gradient(135deg, #00d4ff 0%, #00ff88 100%);
             -webkit-background-clip: text;
@@ -90,30 +86,42 @@
             overflow-y: auto;
         }
         
-        .json-preview::-webkit-scrollbar {
-            width: 8px;
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
         }
         
-        .json-preview::-webkit-scrollbar-track {
-            background: #1e1e2e;
+        .status-connected { background: #22c55e; }
+        .status-disconnected { background: #ef4444; }
+        .status-loading { background: #eab308; animation: pulse 1s infinite; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
         
-        .json-preview::-webkit-scrollbar-thumb {
-            background: #3b3b5c;
-            border-radius: 4px;
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
         }
         
-        .entity-badge {
-            font-size: 10px;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-weight: 600;
-        }
+        .toast-success { background: linear-gradient(135deg, #22c55e, #16a34a); }
+        .toast-error { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .toast-info { background: linear-gradient(135deg, #3b82f6, #2563eb); }
         
-        .tree-line {
-            border-left: 2px dashed rgba(255,255,255,0.2);
-            margin-left: 20px;
-            padding-left: 20px;
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
     </style>
 </head>
@@ -126,14 +134,35 @@
             <span class="gradient-text">Cartographie EDGY</span>
         </h1>
         <p class="text-gray-400">
-            Créez la structure organisationnelle SST de votre entreprise pour SafetyGraph
+            Créez la structure organisationnelle SST et injectez directement dans Neo4j
         </p>
         <div class="flex justify-center gap-4 mt-4">
             <a href="index.html" class="text-cyan-400 hover:text-cyan-300 text-sm">← Retour SafetyGraph</a>
         </div>
+        
+        <!-- API Status -->
+        <div class="mt-4 inline-flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full">
+            <span class="status-dot" id="apiStatusDot"></span>
+            <span class="text-sm" id="apiStatusText">Vérification API...</span>
+            <button onclick="checkApiStatus()" class="text-cyan-400 hover:text-cyan-300 text-xs ml-2">🔄</button>
+        </div>
     </header>
 
     <div class="max-w-7xl mx-auto">
+        
+        <!-- API Configuration -->
+        <div class="glass-card p-4 mb-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <span class="text-sm text-gray-400">🔌 API URL:</span>
+                    <input type="text" id="apiUrl" value="http://localhost:8002" 
+                           class="form-input w-64 text-sm" placeholder="http://localhost:8002">
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm text-gray-400" id="neo4jStats">-</span>
+                </div>
+            </div>
+        </div>
         
         <!-- Entités EDGY -->
         <div class="glass-card p-6 mb-6">
@@ -195,7 +224,7 @@
             <div class="flex gap-4 mt-6">
                 <button onclick="addEntity()" 
                         class="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold py-3 px-6 rounded-lg transition-all flex items-center gap-2">
-                    <span>➕</span> Ajouter à la cartographie
+                    <span>➕</span> Ajouter à la liste
                 </button>
                 <button onclick="clearForm()" 
                         class="bg-white/10 hover:bg-white/20 text-white py-3 px-6 rounded-lg transition-all">
@@ -211,7 +240,7 @@
             <div class="glass-card p-6">
                 <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
                     <span class="bg-green-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm">3</span>
-                    Entités créées
+                    Entités à injecter
                     <span class="text-gray-400 font-normal text-sm ml-2" id="entityCount">(0)</span>
                 </h2>
                 
@@ -220,49 +249,58 @@
                 </div>
             </div>
             
-            <!-- Arbre visuel -->
+            <!-- Actions Neo4j -->
             <div class="glass-card p-6">
-                <h2 class="text-xl font-bold mb-4">🌳 Structure organisationnelle</h2>
-                <div id="orgTree" class="text-sm">
-                    <p class="text-gray-500 italic">Créez une organisation pour commencer</p>
+                <h2 class="text-xl font-bold mb-4">🔷 Injection Neo4j</h2>
+                
+                <div class="space-y-4">
+                    <!-- Bouton principal -->
+                    <button onclick="injectToNeo4j()" id="injectBtn"
+                            class="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white font-bold py-4 px-6 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span>🚀</span>
+                        <span>Envoyer à Neo4j</span>
+                    </button>
+                    
+                    <p class="text-gray-500 text-xs text-center">
+                        Injecte toutes les entités via l'API SafetyGraph
+                    </p>
+                    
+                    <!-- Résultat -->
+                    <div id="injectionResult" class="hidden">
+                        <div class="bg-white/5 rounded-lg p-4">
+                            <h4 class="font-semibold mb-2">📊 Résultat de l'injection</h4>
+                            <div id="injectionDetails" class="text-sm text-gray-400"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Actions secondaires -->
+                    <div class="grid grid-cols-2 gap-2 mt-4">
+                        <button onclick="copyJSON()" 
+                                class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm flex items-center justify-center gap-2">
+                            📋 Copier JSON
+                        </button>
+                        <button onclick="downloadJSON()" 
+                                class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm flex items-center justify-center gap-2">
+                            💾 Télécharger
+                        </button>
+                    </div>
+                    
+                    <button onclick="clearAll()" 
+                            class="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-4 rounded-lg text-sm mt-2">
+                        🗑️ Vider la liste
+                    </button>
                 </div>
             </div>
             
         </div>
 
-        <!-- Export -->
+        <!-- Preview JSON -->
         <div class="glass-card p-6">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-bold flex items-center gap-2">
-                    <span class="bg-purple-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm">4</span>
-                    Export SafetyGraph
-                </h2>
-                
-                <div class="flex gap-2">
-                    <button onclick="copyJSON()" id="copyBtn"
-                            class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
-                        📋 Copier JSON
-                    </button>
-                    <button onclick="downloadJSON()" 
-                            class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
-                        💾 Télécharger
-                    </button>
-                    <button onclick="generateCypher()" 
-                            class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
-                        🔷 Générer Cypher
-                    </button>
-                </div>
+                <h2 class="text-xl font-bold">📄 Aperçu JSON</h2>
+                <span class="text-gray-500 text-sm" id="jsonSize">0 octets</span>
             </div>
             
-            <!-- Tabs -->
-            <div class="flex gap-2 mb-4">
-                <button class="tab-btn active bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg text-sm border border-white/10"
-                        onclick="showTab('json')">📄 JSON</button>
-                <button class="tab-btn bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg text-sm border border-white/10"
-                        onclick="showTab('cypher')">🔷 Cypher</button>
-            </div>
-            
-            <!-- Preview -->
             <div class="json-preview p-4">
                 <pre><code id="exportCode" class="text-green-400 text-sm">{
   "organizations": [],
@@ -271,14 +309,9 @@
   "roles": [],
   "persons": [],
   "risks": [],
-  "processes": [],
-  "relations": []
+  "processes": []
 }</code></pre>
             </div>
-            
-            <p class="text-gray-500 text-xs mt-4">
-                💡 Le JSON généré est compatible avec le module <code>safetygraph_cartography_connector.py</code> et l'API FastAPI
-            </p>
         </div>
 
     </div>
@@ -289,7 +322,17 @@
         <p class="mt-1">Données conformes à la Loi 25 du Québec</p>
     </footer>
 
+    <!-- Toast container -->
+    <div id="toastContainer"></div>
+
 <script>
+// ============================================================================
+// CONFIGURATION API
+// ============================================================================
+
+let API_URL = 'http://localhost:8002';
+let apiConnected = false;
+
 // ============================================================================
 // DONNÉES
 // ============================================================================
@@ -302,11 +345,8 @@ let cartography = {
     roles: [],
     persons: [],
     risks: [],
-    processes: [],
-    relations: []
+    processes: []
 };
-
-let currentTab = 'json';
 
 // Configuration des formulaires par type d'entité
 const ENTITY_FORMS = {
@@ -346,10 +386,7 @@ const ENTITY_FORMS = {
                 { value: "Outaouais", label: "Outaouais" },
                 { value: "Abitibi", label: "Abitibi-Témiscamingue" },
                 { value: "CoteNord", label: "Côte-Nord" },
-                { value: "GaspesieIles", label: "Gaspésie-Îles" },
-                { value: "ChaudiereAppalaches", label: "Chaudière-Appalaches" },
-                { value: "CentreQuebec", label: "Centre-du-Québec" },
-                { value: "NordQuebec", label: "Nord-du-Québec" }
+                { value: "ChaudiereAppalaches", label: "Chaudière-Appalaches" }
             ]},
             { name: "code_cnesst", label: "Code CNESST (optionnel)", type: "text", placeholder: "Ex: CNESST-12345" }
         ]
@@ -478,13 +515,113 @@ const ENTITY_FORMS = {
 };
 
 // ============================================================================
-// FONCTIONS
+// API FUNCTIONS
+// ============================================================================
+
+async function checkApiStatus() {
+    const dot = document.getElementById('apiStatusDot');
+    const text = document.getElementById('apiStatusText');
+    const statsEl = document.getElementById('neo4jStats');
+    
+    API_URL = document.getElementById('apiUrl').value;
+    
+    dot.className = 'status-dot status-loading';
+    text.textContent = 'Connexion...';
+    
+    try {
+        const response = await fetch(`${API_URL}/health`);
+        const data = await response.json();
+        
+        if (data.neo4j === 'connected') {
+            apiConnected = true;
+            dot.className = 'status-dot status-connected';
+            text.textContent = `Connecté à Neo4j`;
+            
+            // Get stats
+            const statsResp = await fetch(`${API_URL}/api/v1/stats`);
+            const stats = await statsResp.json();
+            statsEl.textContent = `${stats.organizations} orgs | ${stats.risks} risques`;
+            
+            showToast('✅ API connectée !', 'success');
+        } else {
+            throw new Error('Neo4j disconnected');
+        }
+    } catch (error) {
+        apiConnected = false;
+        dot.className = 'status-dot status-disconnected';
+        text.textContent = 'API non disponible';
+        statsEl.textContent = '-';
+        showToast('❌ API non disponible', 'error');
+    }
+}
+
+async function injectToNeo4j() {
+    if (!apiConnected) {
+        showToast('❌ API non connectée !', 'error');
+        return;
+    }
+    
+    const totalEntities = Object.values(cartography).reduce((sum, arr) => sum + arr.length, 0);
+    if (totalEntities === 0) {
+        showToast('⚠️ Aucune entité à injecter', 'info');
+        return;
+    }
+    
+    const btn = document.getElementById('injectBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="animate-pulse">⏳ Injection en cours...</span>';
+    
+    try {
+        const response = await fetch(`${API_URL}/api/v1/cartography/import`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(cartography)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const imported = result.imported;
+            const total = Object.values(imported).reduce((sum, n) => sum + n, 0);
+            
+            showToast(`✅ ${total} entités injectées dans Neo4j !`, 'success');
+            
+            // Show details
+            document.getElementById('injectionResult').classList.remove('hidden');
+            document.getElementById('injectionDetails').innerHTML = `
+                <div class="grid grid-cols-2 gap-2">
+                    <div>🏢 Organisations: <span class="text-green-400">${imported.organizations}</span></div>
+                    <div>📍 Zones: <span class="text-green-400">${imported.zones}</span></div>
+                    <div>👥 Équipes: <span class="text-green-400">${imported.teams}</span></div>
+                    <div>👤 Rôles: <span class="text-green-400">${imported.roles}</span></div>
+                    <div>🧑‍💼 Personnes: <span class="text-green-400">${imported.persons}</span></div>
+                    <div>⚠️ Risques: <span class="text-green-400">${imported.risks}</span></div>
+                </div>
+                <p class="text-green-400 mt-2 font-semibold">✅ Total: ${total} entités</p>
+            `;
+            
+            // Refresh stats
+            checkApiStatus();
+        } else {
+            throw new Error(result.error || 'Erreur inconnue');
+        }
+    } catch (error) {
+        showToast(`❌ Erreur: ${error.message}`, 'error');
+    }
+    
+    btn.disabled = false;
+    btn.innerHTML = '<span>🚀</span><span>Envoyer à Neo4j</span>';
+}
+
+// ============================================================================
+// UI FUNCTIONS
 // ============================================================================
 
 function selectEntity(type) {
     selectedEntityType = type;
     
-    // UI
     document.querySelectorAll('.entity-card').forEach(card => {
         card.classList.remove('selected');
         if (card.dataset.entity === type) {
@@ -492,10 +629,8 @@ function selectEntity(type) {
         }
     });
     
-    // Générer le formulaire
     renderForm(type);
     document.getElementById('formSection').style.display = 'block';
-    document.getElementById('formSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderForm(type) {
@@ -536,12 +671,10 @@ function addEntity() {
         id: `${selectedEntityType.toUpperCase()}-${Date.now().toString(36)}`
     };
     
-    // Collecter les valeurs
     config.fields.forEach(field => {
         const el = document.getElementById(`field_${field.name}`);
         let value = el.value;
         
-        // Convertir certaines valeurs
         if (field.type === 'number' && value) {
             value = parseInt(value);
         }
@@ -556,23 +689,18 @@ function addEntity() {
         }
     });
     
-    // Calculer le score pour les risques
     if (selectedEntityType === 'risk' && entity.probabilite && entity.gravite) {
         entity.score = parseInt(entity.probabilite) * parseInt(entity.gravite);
     }
     
-    // Ajouter à la cartographie
     const pluralType = selectedEntityType === 'process' ? 'processes' : selectedEntityType + 's';
     cartography[pluralType].push(entity);
     
-    // Mettre à jour l'UI
     updateEntityList();
-    updateOrgTree();
     updateExport();
     clearForm();
     
-    // Feedback
-    showNotification(`✅ ${config.title.split(' ')[1]} ajouté(e) !`);
+    showToast(`✅ ${config.title.split(' ')[1]} ajouté(e) !`, 'success');
 }
 
 function clearForm() {
@@ -581,10 +709,24 @@ function clearForm() {
     
     config.fields.forEach(field => {
         const el = document.getElementById(`field_${field.name}`);
-        if (el) {
-            el.value = field.type === 'select' ? '' : '';
-        }
+        if (el) el.value = '';
     });
+}
+
+function clearAll() {
+    cartography = {
+        organizations: [],
+        zones: [],
+        teams: [],
+        roles: [],
+        persons: [],
+        risks: [],
+        processes: []
+    };
+    updateEntityList();
+    updateExport();
+    document.getElementById('injectionResult').classList.add('hidden');
+    showToast('🗑️ Liste vidée', 'info');
 }
 
 function updateEntityList() {
@@ -605,26 +747,11 @@ function updateEntityList() {
     }
     
     const icons = {
-        organizations: '🏢',
-        zones: '📍',
-        teams: '👥',
-        roles: '👤',
-        persons: '🧑‍💼',
-        risks: '⚠️',
-        processes: '⚙️'
+        organizations: '🏢', zones: '📍', teams: '👥', roles: '👤',
+        persons: '🧑‍💼', risks: '⚠️', processes: '⚙️'
     };
     
-    const colors = {
-        organizations: 'cyan',
-        zones: 'green',
-        teams: 'blue',
-        roles: 'purple',
-        persons: 'yellow',
-        risks: 'red',
-        processes: 'orange'
-    };
-    
-    container.innerHTML = allEntities.map((entity, idx) => `
+    container.innerHTML = allEntities.map(entity => `
         <div class="flex items-center justify-between bg-white/5 rounded-lg p-3">
             <div class="flex items-center gap-3">
                 <span class="text-xl">${icons[entity._type]}</span>
@@ -633,14 +760,9 @@ function updateEntityList() {
                     <div class="text-xs text-gray-500">${entity.id}</div>
                 </div>
             </div>
-            <div class="flex items-center gap-2">
-                <span class="entity-badge bg-${colors[entity._type]}-500/20 text-${colors[entity._type]}-400">
-                    ${entity._type}
-                </span>
-                <button onclick="removeEntity('${entity._type}', '${entity.id}')" class="text-red-400 hover:text-red-300">
-                    🗑️
-                </button>
-            </div>
+            <button onclick="removeEntity('${entity._type}', '${entity.id}')" class="text-red-400 hover:text-red-300">
+                🗑️
+            </button>
         </div>
     `).join('');
 }
@@ -648,197 +770,18 @@ function updateEntityList() {
 function removeEntity(type, id) {
     cartography[type] = cartography[type].filter(e => e.id !== id);
     updateEntityList();
-    updateOrgTree();
     updateExport();
-}
-
-function updateOrgTree() {
-    const container = document.getElementById('orgTree');
-    
-    if (cartography.organizations.length === 0) {
-        container.innerHTML = '<p class="text-gray-500 italic">Créez une organisation pour commencer</p>';
-        return;
-    }
-    
-    let html = '';
-    
-    cartography.organizations.forEach(org => {
-        html += `
-            <div class="mb-4">
-                <div class="flex items-center gap-2 text-cyan-400 font-bold">
-                    <span>🏢</span> ${org.name}
-                    <span class="text-xs text-gray-500">(${org.sector_scian})</span>
-                </div>
-                <div class="tree-line mt-2 space-y-1">
-        `;
-        
-        // Zones
-        cartography.zones.forEach(zone => {
-            const riskColor = {
-                'minimal': 'green',
-                'faible': 'yellow',
-                'moyen': 'orange',
-                'eleve': 'red',
-                'critique': 'purple'
-            }[zone.risk_level] || 'gray';
-            
-            html += `<div class="text-${riskColor}-400">📍 ${zone.name}</div>`;
-        });
-        
-        // Équipes
-        cartography.teams.forEach(team => {
-            html += `<div class="text-blue-400">👥 ${team.name}</div>`;
-        });
-        
-        // Risques
-        const criticalRisks = cartography.risks.filter(r => r.score >= 15);
-        if (criticalRisks.length > 0) {
-            html += `<div class="text-red-400 mt-2">⚠️ ${criticalRisks.length} risque(s) critique(s)</div>`;
-        }
-        
-        html += `</div></div>`;
-    });
-    
-    container.innerHTML = html;
 }
 
 function updateExport() {
-    const code = document.getElementById('exportCode');
-    
-    if (currentTab === 'json') {
-        code.textContent = JSON.stringify(cartography, null, 2);
-        code.className = 'text-green-400 text-sm';
-    } else {
-        code.textContent = generateCypherQueries();
-        code.className = 'text-cyan-400 text-sm';
-    }
-}
-
-function showTab(tab) {
-    currentTab = tab;
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-    updateExport();
-}
-
-function generateCypherQueries() {
-    let cypher = `// ============================================================================
-// 🗺️ CARTOGRAPHIE EDGY - Requêtes Cypher générées
-// SafetyGraph | EDGY-AgenticX5
-// Généré le: ${new Date().toLocaleString('fr-CA')}
-// ============================================================================
-
-`;
-
-    // Organizations
-    cartography.organizations.forEach(org => {
-        cypher += `
-// Créer Organisation: ${org.name}
-CREATE (o:Organization:EDGYEntity {
-    id: '${org.id}',
-    name: '${org.name}',
-    sector_scian: '${org.sector_scian || ''}',
-    nb_employes: ${org.nb_employes || 0},
-    region_ssq: '${org.region_ssq || ''}',
-    created_at: datetime()
-});
-`;
-    });
-
-    // Zones
-    cartography.zones.forEach(zone => {
-        cypher += `
-// Créer Zone: ${zone.name}
-CREATE (z:Zone:EDGYEntity {
-    id: '${zone.id}',
-    name: '${zone.name}',
-    risk_level: '${zone.risk_level || 'moyen'}',
-    dangers_identifies: ${JSON.stringify(zone.dangers_identifies || [])},
-    epi_requis: ${JSON.stringify(zone.epi_requis || [])},
-    created_at: datetime()
-});
-`;
-    });
-
-    // Teams
-    cartography.teams.forEach(team => {
-        cypher += `
-// Créer Équipe: ${team.name}
-CREATE (t:Team:EDGYEntity {
-    id: '${team.id}',
-    name: '${team.name}',
-    department: '${team.department || ''}',
-    shift: '${team.shift || ''}',
-    created_at: datetime()
-});
-`;
-    });
-
-    // Roles
-    cartography.roles.forEach(role => {
-        cypher += `
-// Créer Rôle: ${role.name}
-CREATE (r:Role:EDGYEntity {
-    id: '${role.id}',
-    name: '${role.name}',
-    niveau_hierarchique: ${role.niveau_hierarchique || 1},
-    formations_obligatoires: ${JSON.stringify(role.formations_obligatoires || [])},
-    autorite_arret_travail: ${role.autorite_arret_travail || false},
-    created_at: datetime()
-});
-`;
-    });
-
-    // Persons
-    cartography.persons.forEach(person => {
-        cypher += `
-// Créer Personne: ${person.matricule}
-CREATE (p:Person:EDGYEntity {
-    id: '${person.id}',
-    matricule: '${person.matricule}',
-    department: '${person.department || ''}',
-    age_groupe: '${person.age_groupe || ''}',
-    anciennete_annees: ${person.anciennete_annees || 0},
-    certifications_sst: ${JSON.stringify(person.certifications_sst || [])},
-    created_at: datetime()
-});
-`;
-    });
-
-    // Risks
-    cartography.risks.forEach(risk => {
-        cypher += `
-// Créer Risque: ${risk.description}
-CREATE (r:RisqueDanger:EDGYEntity {
-    id: '${risk.id}',
-    description: '${risk.description}',
-    categorie: '${risk.categorie || ''}',
-    probabilite: ${risk.probabilite || 1},
-    gravite: ${risk.gravite || 1},
-    score: ${risk.score || 1},
-    created_at: datetime()
-});
-`;
-    });
-
-    return cypher;
-}
-
-function generateCypher() {
-    currentTab = 'cypher';
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-btn')[1].classList.add('active');
-    updateExport();
+    const json = JSON.stringify(cartography, null, 2);
+    document.getElementById('exportCode').textContent = json;
+    document.getElementById('jsonSize').textContent = `${json.length} octets`;
 }
 
 function copyJSON() {
-    const text = currentTab === 'json' ? JSON.stringify(cartography, null, 2) : generateCypherQueries();
-    navigator.clipboard.writeText(text).then(() => {
-        const btn = document.getElementById('copyBtn');
-        btn.innerHTML = '✅ Copié !';
-        setTimeout(() => {
-            btn.innerHTML = '📋 Copier JSON';
-        }, 2000);
+    navigator.clipboard.writeText(JSON.stringify(cartography, null, 2)).then(() => {
+        showToast('📋 JSON copié !', 'success');
     });
 }
 
@@ -853,15 +796,29 @@ function downloadJSON() {
     a.click();
     
     URL.revokeObjectURL(url);
+    showToast('💾 Fichier téléchargé !', 'success');
 }
 
-function showNotification(message) {
-    // Simple alert pour l'instant
-    console.log(message);
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
 }
 
-// Init
-updateExport();
+// ============================================================================
+// INIT
+// ============================================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    checkApiStatus();
+    updateExport();
+});
 </script>
 
 </body>
