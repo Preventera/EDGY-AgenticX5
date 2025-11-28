@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🗺️ Cartographie EDGY - SafetyGraph</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+        
+        * { font-family: 'Inter', sans-serif; }
+        code, pre { font-family: 'JetBrains Mono', monospace; }
+        
+        body {
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+        }
+        
+        .glass-card:hover {
+            border-color: rgba(0, 212, 255, 0.3);
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, #00d4ff 0%, #00ff88 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .entity-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .entity-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.2);
+        }
+        
+        .entity-card.selected {
+            border-color: #00d4ff;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+        }
+        
+        .form-input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: white;
+            width: 100%;
+            transition: all 0.2s;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+        
+        .form-input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+        
+        select.form-input {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 20px;
+            padding-right: 40px;
+        }
+        
+        .tab-btn.active {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: #00d4ff;
+        }
+        
+        .json-preview {
+            background: #1e1e2e;
+            border-radius: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .json-preview::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .json-preview::-webkit-scrollbar-track {
+            background: #1e1e2e;
+        }
+        
+        .json-preview::-webkit-scrollbar-thumb {
+            background: #3b3b5c;
+            border-radius: 4px;
+        }
+        
+        .entity-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        
+        .tree-line {
+            border-left: 2px dashed rgba(255,255,255,0.2);
+            margin-left: 20px;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body class="text-white p-4 md:p-8">
+
+    <!-- Header -->
+    <header class="text-center mb-8">
+        <div class="text-5xl mb-4">🗺️</div>
+        <h1 class="text-3xl md:text-4xl font-bold mb-2">
+            <span class="gradient-text">Cartographie EDGY</span>
+        </h1>
+        <p class="text-gray-400">
+            Créez la structure organisationnelle SST de votre entreprise pour SafetyGraph
+        </p>
+        <div class="flex justify-center gap-4 mt-4">
+            <a href="index.html" class="text-cyan-400 hover:text-cyan-300 text-sm">← Retour SafetyGraph</a>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto">
+        
+        <!-- Entités EDGY -->
+        <div class="glass-card p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <span class="bg-cyan-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm">1</span>
+                Sélectionnez le type d'entité à créer
+            </h2>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3" id="entityTypes">
+                <div class="entity-card glass-card p-4 text-center" data-entity="organization" onclick="selectEntity('organization')">
+                    <div class="text-3xl mb-2">🏢</div>
+                    <div class="font-semibold text-sm">Organisation</div>
+                    <div class="text-xs text-gray-400">Entreprise</div>
+                </div>
+                <div class="entity-card glass-card p-4 text-center" data-entity="zone" onclick="selectEntity('zone')">
+                    <div class="text-3xl mb-2">📍</div>
+                    <div class="font-semibold text-sm">Zone</div>
+                    <div class="text-xs text-gray-400">Lieu de travail</div>
+                </div>
+                <div class="entity-card glass-card p-4 text-center" data-entity="team" onclick="selectEntity('team')">
+                    <div class="text-3xl mb-2">👥</div>
+                    <div class="font-semibold text-sm">Équipe</div>
+                    <div class="text-xs text-gray-400">Groupe</div>
+                </div>
+                <div class="entity-card glass-card p-4 text-center" data-entity="role" onclick="selectEntity('role')">
+                    <div class="text-3xl mb-2">👤</div>
+                    <div class="font-semibold text-sm">Rôle</div>
+                    <div class="text-xs text-gray-400">Fonction</div>
+                </div>
+                <div class="entity-card glass-card p-4 text-center" data-entity="person" onclick="selectEntity('person')">
+                    <div class="text-3xl mb-2">🧑‍💼</div>
+                    <div class="font-semibold text-sm">Personne</div>
+                    <div class="text-xs text-gray-400">Travailleur</div>
+                </div>
+                <div class="entity-card glass-card p-4 text-center" data-entity="risk" onclick="selectEntity('risk')">
+                    <div class="text-3xl mb-2">⚠️</div>
+                    <div class="font-semibold text-sm">Risque</div>
+                    <div class="text-xs text-gray-400">Danger</div>
+                </div>
+                <div class="entity-card glass-card p-4 text-center" data-entity="process" onclick="selectEntity('process')">
+                    <div class="text-3xl mb-2">⚙️</div>
+                    <div class="font-semibold text-sm">Processus</div>
+                    <div class="text-xs text-gray-400">Activité</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulaire dynamique -->
+        <div class="glass-card p-6 mb-6" id="formSection" style="display: none;">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <span class="bg-cyan-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm">2</span>
+                <span id="formTitle">Créer une entité</span>
+            </h2>
+            
+            <div id="formContainer" class="grid md:grid-cols-2 gap-4">
+                <!-- Formulaire généré dynamiquement -->
+            </div>
+            
+            <div class="flex gap-4 mt-6">
+                <button onclick="addEntity()" 
+                        class="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold py-3 px-6 rounded-lg transition-all flex items-center gap-2">
+                    <span>➕</span> Ajouter à la cartographie
+                </button>
+                <button onclick="clearForm()" 
+                        class="bg-white/10 hover:bg-white/20 text-white py-3 px-6 rounded-lg transition-all">
+                    🗑️ Effacer
+                </button>
+            </div>
+        </div>
+
+        <!-- Cartographie créée -->
+        <div class="grid md:grid-cols-2 gap-6 mb-6">
+            
+            <!-- Liste des entités -->
+            <div class="glass-card p-6">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <span class="bg-green-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm">3</span>
+                    Entités créées
+                    <span class="text-gray-400 font-normal text-sm ml-2" id="entityCount">(0)</span>
+                </h2>
+                
+                <div id="entityList" class="space-y-2 max-h-96 overflow-y-auto">
+                    <p class="text-gray-500 text-sm italic">Aucune entité créée</p>
+                </div>
+            </div>
+            
+            <!-- Arbre visuel -->
+            <div class="glass-card p-6">
+                <h2 class="text-xl font-bold mb-4">🌳 Structure organisationnelle</h2>
+                <div id="orgTree" class="text-sm">
+                    <p class="text-gray-500 italic">Créez une organisation pour commencer</p>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- Export -->
+        <div class="glass-card p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                    <span class="bg-purple-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm">4</span>
+                    Export SafetyGraph
+                </h2>
+                
+                <div class="flex gap-2">
+                    <button onclick="copyJSON()" id="copyBtn"
+                            class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                        📋 Copier JSON
+                    </button>
+                    <button onclick="downloadJSON()" 
+                            class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                        💾 Télécharger
+                    </button>
+                    <button onclick="generateCypher()" 
+                            class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                        🔷 Générer Cypher
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Tabs -->
+            <div class="flex gap-2 mb-4">
+                <button class="tab-btn active bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg text-sm border border-white/10"
+                        onclick="showTab('json')">📄 JSON</button>
+                <button class="tab-btn bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg text-sm border border-white/10"
+                        onclick="showTab('cypher')">🔷 Cypher</button>
+            </div>
+            
+            <!-- Preview -->
+            <div class="json-preview p-4">
+                <pre><code id="exportCode" class="text-green-400 text-sm">{
+  "organizations": [],
+  "zones": [],
+  "teams": [],
+  "roles": [],
+  "persons": [],
+  "risks": [],
+  "processes": [],
+  "relations": []
+}</code></pre>
+            </div>
+            
+            <p class="text-gray-500 text-xs mt-4">
+                💡 Le JSON généré est compatible avec le module <code>safetygraph_cartography_connector.py</code> et l'API FastAPI
+            </p>
+        </div>
+
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center py-8 mt-8 text-gray-500 text-sm">
+        <p>🛡️ SafetyGraph | EDGY-AgenticX5 | Preventera | GenAISafety</p>
+        <p class="mt-1">Données conformes à la Loi 25 du Québec</p>
+    </footer>
+
+<script>
+// ============================================================================
+// DONNÉES
+// ============================================================================
+
+let selectedEntityType = null;
+let cartography = {
+    organizations: [],
+    zones: [],
+    teams: [],
+    roles: [],
+    persons: [],
+    risks: [],
+    processes: [],
+    relations: []
+};
+
+let currentTab = 'json';
+
+// Configuration des formulaires par type d'entité
+const ENTITY_FORMS = {
+    organization: {
+        title: "🏢 Créer une Organisation",
+        fields: [
+            { name: "name", label: "Nom de l'entreprise", type: "text", required: true, placeholder: "Ex: Industries ABC Inc." },
+            { name: "sector_scian", label: "Secteur SCIAN", type: "select", required: true, options: [
+                { value: "", label: "-- Sélectionner --" },
+                { value: "236", label: "236 - Construction bâtiments" },
+                { value: "237", label: "237 - Génie civil" },
+                { value: "238", label: "238 - Entrepreneurs spécialisés" },
+                { value: "31-33", label: "31-33 - Fabrication" },
+                { value: "311", label: "311 - Agroalimentaire" },
+                { value: "44-45", label: "44-45 - Commerce détail" },
+                { value: "48-49", label: "48-49 - Transport/Entreposage" },
+                { value: "54", label: "54 - Services professionnels" },
+                { value: "62", label: "62 - Santé" },
+                { value: "72", label: "72 - Hébergement/Restauration" },
+                { value: "21", label: "21 - Mines" },
+                { value: "22", label: "22 - Services publics" },
+                { value: "11", label: "11 - Agriculture" },
+                { value: "91", label: "91 - Administration publique" }
+            ]},
+            { name: "nb_employes", label: "Nombre d'employés", type: "number", placeholder: "Ex: 150" },
+            { name: "region_ssq", label: "Région SSQ", type: "select", options: [
+                { value: "", label: "-- Sélectionner --" },
+                { value: "Montreal", label: "Montréal" },
+                { value: "Quebec", label: "Québec" },
+                { value: "Laval", label: "Laval" },
+                { value: "Monteregie", label: "Montérégie" },
+                { value: "Laurentides", label: "Laurentides" },
+                { value: "Lanaudiere", label: "Lanaudière" },
+                { value: "Estrie", label: "Estrie" },
+                { value: "Mauricie", label: "Mauricie" },
+                { value: "Saguenay", label: "Saguenay-Lac-St-Jean" },
+                { value: "Outaouais", label: "Outaouais" },
+                { value: "Abitibi", label: "Abitibi-Témiscamingue" },
+                { value: "CoteNord", label: "Côte-Nord" },
+                { value: "GaspesieIles", label: "Gaspésie-Îles" },
+                { value: "ChaudiereAppalaches", label: "Chaudière-Appalaches" },
+                { value: "CentreQuebec", label: "Centre-du-Québec" },
+                { value: "NordQuebec", label: "Nord-du-Québec" }
+            ]},
+            { name: "code_cnesst", label: "Code CNESST (optionnel)", type: "text", placeholder: "Ex: CNESST-12345" }
+        ]
+    },
+    zone: {
+        title: "📍 Créer une Zone",
+        fields: [
+            { name: "name", label: "Nom de la zone", type: "text", required: true, placeholder: "Ex: Atelier de production" },
+            { name: "risk_level", label: "Niveau de risque", type: "select", required: true, options: [
+                { value: "", label: "-- Sélectionner --" },
+                { value: "minimal", label: "🟢 Minimal" },
+                { value: "faible", label: "🟡 Faible" },
+                { value: "moyen", label: "🟠 Moyen" },
+                { value: "eleve", label: "🔴 Élevé" },
+                { value: "critique", label: "⚫ Critique" }
+            ]},
+            { name: "dangers_identifies", label: "Dangers identifiés (séparés par virgule)", type: "text", placeholder: "Ex: Bruit, Machines, Manutention" },
+            { name: "epi_requis", label: "EPI requis (séparés par virgule)", type: "text", placeholder: "Ex: Casque, Lunettes, Gants" },
+            { name: "capacite_max", label: "Capacité max (personnes)", type: "number", placeholder: "Ex: 20" }
+        ]
+    },
+    team: {
+        title: "👥 Créer une Équipe",
+        fields: [
+            { name: "name", label: "Nom de l'équipe", type: "text", required: true, placeholder: "Ex: Équipe Production A" },
+            { name: "department", label: "Département", type: "text", placeholder: "Ex: Production" },
+            { name: "shift", label: "Quart de travail", type: "select", options: [
+                { value: "", label: "-- Sélectionner --" },
+                { value: "jour", label: "🌅 Jour" },
+                { value: "soir", label: "🌆 Soir" },
+                { value: "nuit", label: "🌙 Nuit" },
+                { value: "rotation", label: "🔄 Rotation" }
+            ]},
+            { name: "superviseur", label: "Superviseur", type: "text", placeholder: "Ex: Jean Tremblay" }
+        ]
+    },
+    role: {
+        title: "👤 Créer un Rôle",
+        fields: [
+            { name: "name", label: "Titre du rôle", type: "text", required: true, placeholder: "Ex: Opérateur de machine" },
+            { name: "niveau_hierarchique", label: "Niveau hiérarchique", type: "select", options: [
+                { value: "1", label: "1 - Opérationnel" },
+                { value: "2", label: "2 - Technicien" },
+                { value: "3", label: "3 - Superviseur" },
+                { value: "4", label: "4 - Gestionnaire" },
+                { value: "5", label: "5 - Direction" }
+            ]},
+            { name: "formations_obligatoires", label: "Formations obligatoires (virgule)", type: "text", placeholder: "Ex: SIMDUT, Secourisme, LOTO" },
+            { name: "autorite_arret_travail", label: "Autorité arrêt travail", type: "select", options: [
+                { value: "false", label: "❌ Non" },
+                { value: "true", label: "✅ Oui" }
+            ]}
+        ]
+    },
+    person: {
+        title: "🧑‍💼 Créer une Personne",
+        fields: [
+            { name: "matricule", label: "Matricule (anonyme)", type: "text", required: true, placeholder: "Ex: EMP-001" },
+            { name: "department", label: "Département", type: "text", placeholder: "Ex: Production" },
+            { name: "age_groupe", label: "Groupe d'âge", type: "select", options: [
+                { value: "", label: "-- Sélectionner --" },
+                { value: "18-24", label: "18-24 ans" },
+                { value: "25-34", label: "25-34 ans" },
+                { value: "35-44", label: "35-44 ans" },
+                { value: "45-54", label: "45-54 ans" },
+                { value: "55-64", label: "55-64 ans" },
+                { value: "65+", label: "65+ ans" }
+            ]},
+            { name: "anciennete_annees", label: "Ancienneté (années)", type: "number", placeholder: "Ex: 5" },
+            { name: "certifications_sst", label: "Certifications SST (virgule)", type: "text", placeholder: "Ex: SIMDUT, Secourisme, Cariste" }
+        ]
+    },
+    risk: {
+        title: "⚠️ Créer un Risque",
+        fields: [
+            { name: "description", label: "Description du risque", type: "text", required: true, placeholder: "Ex: Risque de coupure sur machine X" },
+            { name: "categorie", label: "Catégorie", type: "select", required: true, options: [
+                { value: "", label: "-- Sélectionner --" },
+                { value: "chute", label: "🪜 Chute" },
+                { value: "mecanique", label: "🔧 Mécanique" },
+                { value: "electrique", label: "⚡ Électrique" },
+                { value: "ergonomique", label: "🦴 Ergonomique" },
+                { value: "chimique", label: "🧪 Chimique" },
+                { value: "biologique", label: "🦠 Biologique" },
+                { value: "psychosocial", label: "🧠 Psychosocial" },
+                { value: "bruit", label: "🔊 Bruit" },
+                { value: "thermique", label: "🔥 Thermique" },
+                { value: "radiation", label: "☢️ Radiation" }
+            ]},
+            { name: "probabilite", label: "Probabilité (1-5)", type: "select", required: true, options: [
+                { value: "1", label: "1 - Rare" },
+                { value: "2", label: "2 - Peu probable" },
+                { value: "3", label: "3 - Possible" },
+                { value: "4", label: "4 - Probable" },
+                { value: "5", label: "5 - Très probable" }
+            ]},
+            { name: "gravite", label: "Gravité (1-5)", type: "select", required: true, options: [
+                { value: "1", label: "1 - Négligeable" },
+                { value: "2", label: "2 - Mineur" },
+                { value: "3", label: "3 - Modéré" },
+                { value: "4", label: "4 - Majeur" },
+                { value: "5", label: "5 - Catastrophique" }
+            ]},
+            { name: "controles", label: "Mesures de contrôle", type: "text", placeholder: "Ex: Garde de protection, Formation" }
+        ]
+    },
+    process: {
+        title: "⚙️ Créer un Processus",
+        fields: [
+            { name: "name", label: "Nom du processus", type: "text", required: true, placeholder: "Ex: Assemblage pièces" },
+            { name: "description", label: "Description", type: "text", placeholder: "Ex: Processus d'assemblage en ligne" },
+            { name: "criticite", label: "Criticité", type: "select", options: [
+                { value: "faible", label: "🟢 Faible" },
+                { value: "moyenne", label: "🟡 Moyenne" },
+                { value: "elevee", label: "🔴 Élevée" }
+            ]},
+            { name: "frequence", label: "Fréquence", type: "select", options: [
+                { value: "continue", label: "Continue" },
+                { value: "quotidienne", label: "Quotidienne" },
+                { value: "hebdomadaire", label: "Hebdomadaire" },
+                { value: "mensuelle", label: "Mensuelle" },
+                { value: "occasionnelle", label: "Occasionnelle" }
+            ]}
+        ]
+    }
+};
+
+// ============================================================================
+// FONCTIONS
+// ============================================================================
+
+function selectEntity(type) {
+    selectedEntityType = type;
+    
+    // UI
+    document.querySelectorAll('.entity-card').forEach(card => {
+        card.classList.remove('selected');
+        if (card.dataset.entity === type) {
+            card.classList.add('selected');
+        }
+    });
+    
+    // Générer le formulaire
+    renderForm(type);
+    document.getElementById('formSection').style.display = 'block';
+    document.getElementById('formSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderForm(type) {
+    const config = ENTITY_FORMS[type];
+    document.getElementById('formTitle').textContent = config.title;
+    
+    const container = document.getElementById('formContainer');
+    container.innerHTML = config.fields.map(field => {
+        let input;
+        
+        if (field.type === 'select') {
+            input = `
+                <select id="field_${field.name}" class="form-input" ${field.required ? 'required' : ''}>
+                    ${field.options.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('')}
+                </select>
+            `;
+        } else {
+            input = `
+                <input type="${field.type}" id="field_${field.name}" class="form-input" 
+                       placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''}>
+            `;
+        }
+        
+        return `
+            <div>
+                <label class="block text-sm text-gray-400 mb-2">${field.label}${field.required ? ' *' : ''}</label>
+                ${input}
+            </div>
+        `;
+    }).join('');
+}
+
+function addEntity() {
+    if (!selectedEntityType) return;
+    
+    const config = ENTITY_FORMS[selectedEntityType];
+    const entity = {
+        id: `${selectedEntityType.toUpperCase()}-${Date.now().toString(36)}`
+    };
+    
+    // Collecter les valeurs
+    config.fields.forEach(field => {
+        const el = document.getElementById(`field_${field.name}`);
+        let value = el.value;
+        
+        // Convertir certaines valeurs
+        if (field.type === 'number' && value) {
+            value = parseInt(value);
+        }
+        if (field.name.includes('formations') || field.name.includes('certifications') || field.name.includes('dangers') || field.name.includes('epi')) {
+            value = value ? value.split(',').map(s => s.trim()).filter(s => s) : [];
+        }
+        if (value === 'true') value = true;
+        if (value === 'false') value = false;
+        
+        if (value !== '' && value !== null && !(Array.isArray(value) && value.length === 0)) {
+            entity[field.name] = value;
+        }
+    });
+    
+    // Calculer le score pour les risques
+    if (selectedEntityType === 'risk' && entity.probabilite && entity.gravite) {
+        entity.score = parseInt(entity.probabilite) * parseInt(entity.gravite);
+    }
+    
+    // Ajouter à la cartographie
+    const pluralType = selectedEntityType === 'process' ? 'processes' : selectedEntityType + 's';
+    cartography[pluralType].push(entity);
+    
+    // Mettre à jour l'UI
+    updateEntityList();
+    updateOrgTree();
+    updateExport();
+    clearForm();
+    
+    // Feedback
+    showNotification(`✅ ${config.title.split(' ')[1]} ajouté(e) !`);
+}
+
+function clearForm() {
+    const config = ENTITY_FORMS[selectedEntityType];
+    if (!config) return;
+    
+    config.fields.forEach(field => {
+        const el = document.getElementById(`field_${field.name}`);
+        if (el) {
+            el.value = field.type === 'select' ? '' : '';
+        }
+    });
+}
+
+function updateEntityList() {
+    const container = document.getElementById('entityList');
+    const allEntities = [];
+    
+    Object.keys(cartography).forEach(type => {
+        cartography[type].forEach(entity => {
+            allEntities.push({ ...entity, _type: type });
+        });
+    });
+    
+    document.getElementById('entityCount').textContent = `(${allEntities.length})`;
+    
+    if (allEntities.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-sm italic">Aucune entité créée</p>';
+        return;
+    }
+    
+    const icons = {
+        organizations: '🏢',
+        zones: '📍',
+        teams: '👥',
+        roles: '👤',
+        persons: '🧑‍💼',
+        risks: '⚠️',
+        processes: '⚙️'
+    };
+    
+    const colors = {
+        organizations: 'cyan',
+        zones: 'green',
+        teams: 'blue',
+        roles: 'purple',
+        persons: 'yellow',
+        risks: 'red',
+        processes: 'orange'
+    };
+    
+    container.innerHTML = allEntities.map((entity, idx) => `
+        <div class="flex items-center justify-between bg-white/5 rounded-lg p-3">
+            <div class="flex items-center gap-3">
+                <span class="text-xl">${icons[entity._type]}</span>
+                <div>
+                    <div class="font-medium text-sm">${entity.name || entity.description || entity.matricule}</div>
+                    <div class="text-xs text-gray-500">${entity.id}</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="entity-badge bg-${colors[entity._type]}-500/20 text-${colors[entity._type]}-400">
+                    ${entity._type}
+                </span>
+                <button onclick="removeEntity('${entity._type}', '${entity.id}')" class="text-red-400 hover:text-red-300">
+                    🗑️
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function removeEntity(type, id) {
+    cartography[type] = cartography[type].filter(e => e.id !== id);
+    updateEntityList();
+    updateOrgTree();
+    updateExport();
+}
+
+function updateOrgTree() {
+    const container = document.getElementById('orgTree');
+    
+    if (cartography.organizations.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 italic">Créez une organisation pour commencer</p>';
+        return;
+    }
+    
+    let html = '';
+    
+    cartography.organizations.forEach(org => {
+        html += `
+            <div class="mb-4">
+                <div class="flex items-center gap-2 text-cyan-400 font-bold">
+                    <span>🏢</span> ${org.name}
+                    <span class="text-xs text-gray-500">(${org.sector_scian})</span>
+                </div>
+                <div class="tree-line mt-2 space-y-1">
+        `;
+        
+        // Zones
+        cartography.zones.forEach(zone => {
+            const riskColor = {
+                'minimal': 'green',
+                'faible': 'yellow',
+                'moyen': 'orange',
+                'eleve': 'red',
+                'critique': 'purple'
+            }[zone.risk_level] || 'gray';
+            
+            html += `<div class="text-${riskColor}-400">📍 ${zone.name}</div>`;
+        });
+        
+        // Équipes
+        cartography.teams.forEach(team => {
+            html += `<div class="text-blue-400">👥 ${team.name}</div>`;
+        });
+        
+        // Risques
+        const criticalRisks = cartography.risks.filter(r => r.score >= 15);
+        if (criticalRisks.length > 0) {
+            html += `<div class="text-red-400 mt-2">⚠️ ${criticalRisks.length} risque(s) critique(s)</div>`;
+        }
+        
+        html += `</div></div>`;
+    });
+    
+    container.innerHTML = html;
+}
+
+function updateExport() {
+    const code = document.getElementById('exportCode');
+    
+    if (currentTab === 'json') {
+        code.textContent = JSON.stringify(cartography, null, 2);
+        code.className = 'text-green-400 text-sm';
+    } else {
+        code.textContent = generateCypherQueries();
+        code.className = 'text-cyan-400 text-sm';
+    }
+}
+
+function showTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    updateExport();
+}
+
+function generateCypherQueries() {
+    let cypher = `// ============================================================================
+// 🗺️ CARTOGRAPHIE EDGY - Requêtes Cypher générées
+// SafetyGraph | EDGY-AgenticX5
+// Généré le: ${new Date().toLocaleString('fr-CA')}
+// ============================================================================
+
+`;
+
+    // Organizations
+    cartography.organizations.forEach(org => {
+        cypher += `
+// Créer Organisation: ${org.name}
+CREATE (o:Organization:EDGYEntity {
+    id: '${org.id}',
+    name: '${org.name}',
+    sector_scian: '${org.sector_scian || ''}',
+    nb_employes: ${org.nb_employes || 0},
+    region_ssq: '${org.region_ssq || ''}',
+    created_at: datetime()
+});
+`;
+    });
+
+    // Zones
+    cartography.zones.forEach(zone => {
+        cypher += `
+// Créer Zone: ${zone.name}
+CREATE (z:Zone:EDGYEntity {
+    id: '${zone.id}',
+    name: '${zone.name}',
+    risk_level: '${zone.risk_level || 'moyen'}',
+    dangers_identifies: ${JSON.stringify(zone.dangers_identifies || [])},
+    epi_requis: ${JSON.stringify(zone.epi_requis || [])},
+    created_at: datetime()
+});
+`;
+    });
+
+    // Teams
+    cartography.teams.forEach(team => {
+        cypher += `
+// Créer Équipe: ${team.name}
+CREATE (t:Team:EDGYEntity {
+    id: '${team.id}',
+    name: '${team.name}',
+    department: '${team.department || ''}',
+    shift: '${team.shift || ''}',
+    created_at: datetime()
+});
+`;
+    });
+
+    // Roles
+    cartography.roles.forEach(role => {
+        cypher += `
+// Créer Rôle: ${role.name}
+CREATE (r:Role:EDGYEntity {
+    id: '${role.id}',
+    name: '${role.name}',
+    niveau_hierarchique: ${role.niveau_hierarchique || 1},
+    formations_obligatoires: ${JSON.stringify(role.formations_obligatoires || [])},
+    autorite_arret_travail: ${role.autorite_arret_travail || false},
+    created_at: datetime()
+});
+`;
+    });
+
+    // Persons
+    cartography.persons.forEach(person => {
+        cypher += `
+// Créer Personne: ${person.matricule}
+CREATE (p:Person:EDGYEntity {
+    id: '${person.id}',
+    matricule: '${person.matricule}',
+    department: '${person.department || ''}',
+    age_groupe: '${person.age_groupe || ''}',
+    anciennete_annees: ${person.anciennete_annees || 0},
+    certifications_sst: ${JSON.stringify(person.certifications_sst || [])},
+    created_at: datetime()
+});
+`;
+    });
+
+    // Risks
+    cartography.risks.forEach(risk => {
+        cypher += `
+// Créer Risque: ${risk.description}
+CREATE (r:RisqueDanger:EDGYEntity {
+    id: '${risk.id}',
+    description: '${risk.description}',
+    categorie: '${risk.categorie || ''}',
+    probabilite: ${risk.probabilite || 1},
+    gravite: ${risk.gravite || 1},
+    score: ${risk.score || 1},
+    created_at: datetime()
+});
+`;
+    });
+
+    return cypher;
+}
+
+function generateCypher() {
+    currentTab = 'cypher';
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-btn')[1].classList.add('active');
+    updateExport();
+}
+
+function copyJSON() {
+    const text = currentTab === 'json' ? JSON.stringify(cartography, null, 2) : generateCypherQueries();
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('copyBtn');
+        btn.innerHTML = '✅ Copié !';
+        setTimeout(() => {
+            btn.innerHTML = '📋 Copier JSON';
+        }, 2000);
+    });
+}
+
+function downloadJSON() {
+    const data = JSON.stringify(cartography, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cartographie_edgy_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    
+    URL.revokeObjectURL(url);
+}
+
+function showNotification(message) {
+    // Simple alert pour l'instant
+    console.log(message);
+}
+
+// Init
+updateExport();
+</script>
+
+</body>
+</html>

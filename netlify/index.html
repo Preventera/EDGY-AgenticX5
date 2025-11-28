@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🛡️ SafetyGraph - EDGY-AgenticX5</title>
-    <meta name="description" content="Plateforme d'analyse prédictive SST pour le Québec - 460 organisations, 2,870 risques, 16 secteurs SCIAN">
+    <meta name="description" content="Plateforme d'analyse prédictive SST pour le Québec - Neo4j Knowledge Graph">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -28,10 +28,6 @@
             transform: translateY(-5px);
             box-shadow: 0 20px 40px rgba(0, 212, 255, 0.2);
             border-color: rgba(0, 212, 255, 0.3);
-        }
-        
-        .glow-text {
-            text-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
         }
         
         .gradient-text {
@@ -84,6 +80,20 @@
             0%, 100% { opacity: 0.3; }
             50% { opacity: 1; }
         }
+        
+        .new-badge {
+            background: linear-gradient(135deg, #ff6b6b, #feca57);
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
     </style>
 </head>
 <body class="text-white relative">
@@ -102,7 +112,7 @@
         <h1 class="text-5xl md:text-7xl font-bold mb-4">
             <span class="gradient-text">SafetyGraph</span>
         </h1>
-        <p class="text-xl md:text-2xl text-cyan-400 glow-text mb-2">
+        <p class="text-xl md:text-2xl text-cyan-400 mb-2">
             EDGY-AgenticX5 | Preventera | GenAISafety
         </p>
         <p class="text-gray-400 max-w-2xl mx-auto">
@@ -126,57 +136,55 @@
                 <div class="text-gray-400">Risques</div>
             </div>
             <div class="glass-card p-6 text-center">
-                <div class="text-4xl font-bold text-purple-400">16</div>
+                <div class="text-4xl font-bold text-purple-400">20</div>
                 <div class="text-gray-400">Secteurs SCIAN</div>
             </div>
         </div>
     </div>
 
-    <!-- Applications - LIENS VERS LES DASHBOARDS -->
+    <!-- Applications -->
     <div class="max-w-6xl mx-auto px-4 mb-16">
-        <h2 class="text-3xl font-bold text-center mb-8">📊 Applications Disponibles</h2>
+        <h2 class="text-3xl font-bold text-center mb-8">📊 Applications</h2>
         
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid md:grid-cols-3 gap-6">
             
             <!-- Dashboard Interactif -->
             <a href="safetygraph_dashboard.html" class="glass-card p-8 block group cursor-pointer">
                 <div class="text-5xl mb-4 group-hover:scale-110 transition-transform">📊</div>
                 <h3 class="text-xl font-bold mb-2 text-cyan-400">Dashboard Interactif</h3>
                 <p class="text-gray-400 text-sm mb-4">
-                    Visualisations Plotly des 16 secteurs SCIAN, zones de risque, et KPIs en temps réel.
+                    Visualisations des secteurs SCIAN, zones de risque et KPIs en temps réel.
                 </p>
                 <div class="flex flex-wrap gap-2">
                     <span class="bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded text-xs">Plotly</span>
                     <span class="bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs">Interactif</span>
-                    <span class="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs">16 Secteurs</span>
                 </div>
             </a>
             
-            <!-- 100 Requêtes Cypher -->
-            <a href="safetygraph_cypher_presentation.html" class="glass-card p-8 block group cursor-pointer">
-                <div class="text-5xl mb-4 group-hover:scale-110 transition-transform">🔍</div>
-                <h3 class="text-xl font-bold mb-2 text-purple-400">100 Requêtes Cypher</h3>
+            <!-- Générateur Cypher -->
+            <a href="cypher_generator.html" class="glass-card p-8 block group cursor-pointer relative">
+                <div class="text-5xl mb-4 group-hover:scale-110 transition-transform">🔧</div>
+                <h3 class="text-xl font-bold mb-2 text-yellow-400">Générateur Cypher</h3>
                 <p class="text-gray-400 text-sm mb-4">
-                    Collection complète de requêtes Neo4j pour analyses prédictives, alertes, et conformité ISO 45001.
+                    Générez des requêtes Neo4j personnalisées selon votre secteur SCIAN.
                 </p>
                 <div class="flex flex-wrap gap-2">
-                    <span class="bg-purple-500/20 text-purple-400 px-2 py-1 rounded text-xs">Neo4j</span>
-                    <span class="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs">Cypher</span>
-                    <span class="bg-orange-500/20 text-orange-400 px-2 py-1 rounded text-xs">Prédictif</span>
+                    <span class="bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded text-xs">Auto</span>
+                    <span class="bg-orange-500/20 text-orange-400 px-2 py-1 rounded text-xs">20 secteurs</span>
                 </div>
             </a>
             
-            <!-- API FastAPI -->
-            <a href="https://github.com/Preventera/EDGY-AgenticX5" target="_blank" class="glass-card p-8 block group cursor-pointer">
-                <div class="text-5xl mb-4 group-hover:scale-110 transition-transform">🔌</div>
-                <h3 class="text-xl font-bold mb-2 text-green-400">API FastAPI</h3>
+            <!-- Cartographie EDGY -->
+            <a href="cartographie_edgy.html" class="glass-card p-8 block group cursor-pointer relative">
+                <span class="new-badge absolute top-4 right-4">NOUVEAU</span>
+                <div class="text-5xl mb-4 group-hover:scale-110 transition-transform">🗺️</div>
+                <h3 class="text-xl font-bold mb-2 text-green-400">Cartographie EDGY</h3>
                 <p class="text-gray-400 text-sm mb-4">
-                    50+ endpoints REST pour requêtes Cypher, agents IA, et analyses prédictives ML.
+                    Créez et visualisez la structure organisationnelle SST de votre entreprise.
                 </p>
                 <div class="flex flex-wrap gap-2">
-                    <span class="bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs">FastAPI</span>
-                    <span class="bg-orange-500/20 text-orange-400 px-2 py-1 rounded text-xs">REST</span>
-                    <span class="bg-red-500/20 text-red-400 px-2 py-1 rounded text-xs">GitHub</span>
+                    <span class="bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs">EDGY</span>
+                    <span class="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs">Loi 25</span>
                 </div>
             </a>
             
@@ -185,142 +193,125 @@
 
     <!-- Secteurs SCIAN -->
     <div class="max-w-6xl mx-auto px-4 mb-16">
-        <h2 class="text-3xl font-bold text-center mb-8">🏭 16 Secteurs SCIAN couverts</h2>
+        <h2 class="text-3xl font-bold text-center mb-8">🏭 20 Secteurs SCIAN</h2>
         
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div class="glass-card p-3 text-center text-sm">
+                <div class="text-2xl mb-1">🏨</div>
+                <div class="text-gray-300 text-xs">Hôpitaux</div>
+                <div class="text-red-400 font-bold text-xs">35K lésions/an</div>
+            </div>
             <div class="glass-card p-3 text-center text-sm">
                 <div class="text-2xl mb-1">🏥</div>
                 <div class="text-gray-300 text-xs">Santé</div>
-                <div class="text-cyan-400 font-bold">31</div>
-            </div>
-            <div class="glass-card p-3 text-center text-sm">
-                <div class="text-2xl mb-1">🏭</div>
-                <div class="text-gray-300 text-xs">Fabrication</div>
-                <div class="text-cyan-400 font-bold">46</div>
+                <div class="text-orange-400 font-bold text-xs">25K lésions/an</div>
             </div>
             <div class="glass-card p-3 text-center text-sm">
                 <div class="text-2xl mb-1">🛒</div>
                 <div class="text-gray-300 text-xs">Commerce</div>
-                <div class="text-cyan-400 font-bold">28</div>
+                <div class="text-orange-400 font-bold text-xs">25K lésions/an</div>
+            </div>
+            <div class="glass-card p-3 text-center text-sm">
+                <div class="text-2xl mb-1">🏭</div>
+                <div class="text-gray-300 text-xs">Fabrication</div>
+                <div class="text-yellow-400 font-bold text-xs">20K lésions/an</div>
             </div>
             <div class="glass-card p-3 text-center text-sm">
                 <div class="text-2xl mb-1">🏗️</div>
                 <div class="text-gray-300 text-xs">Construction</div>
-                <div class="text-cyan-400 font-bold">53</div>
+                <div class="text-yellow-400 font-bold text-xs">18K lésions/an</div>
             </div>
             <div class="glass-card p-3 text-center text-sm">
                 <div class="text-2xl mb-1">🍽️</div>
                 <div class="text-gray-300 text-xs">Resto/Hôtel</div>
-                <div class="text-cyan-400 font-bold">29</div>
+                <div class="text-cyan-400 font-bold text-xs">15K lésions/an</div>
             </div>
             <div class="glass-card p-3 text-center text-sm">
-                <div class="text-2xl mb-1">💼</div>
-                <div class="text-gray-300 text-xs">Services Pro</div>
-                <div class="text-cyan-400 font-bold">45</div>
-            </div>
-            <div class="glass-card p-3 text-center text-sm">
-                <div class="text-2xl mb-1">⚡</div>
-                <div class="text-gray-300 text-xs">Énergie</div>
-                <div class="text-cyan-400 font-bold">26</div>
+                <div class="text-2xl mb-1">⚙️</div>
+                <div class="text-gray-300 text-xs">Métallurgie</div>
+                <div class="text-cyan-400 font-bold text-xs">13K lésions/an</div>
             </div>
             <div class="glass-card p-3 text-center text-sm">
                 <div class="text-2xl mb-1">🚛</div>
                 <div class="text-gray-300 text-xs">Transport</div>
-                <div class="text-cyan-400 font-bold">24</div>
+                <div class="text-cyan-400 font-bold text-xs">12K lésions/an</div>
+            </div>
+            <div class="glass-card p-3 text-center text-sm">
+                <div class="text-2xl mb-1">🍖</div>
+                <div class="text-gray-300 text-xs">Agroalimentaire</div>
+                <div class="text-cyan-400 font-bold text-xs">12K lésions/an</div>
+            </div>
+            <div class="glass-card p-3 text-center text-sm">
+                <div class="text-2xl mb-1">⛏️</div>
+                <div class="text-gray-300 text-xs">Mines</div>
+                <div class="text-green-400 font-bold text-xs">3K lésions/an</div>
             </div>
         </div>
         
         <p class="text-center text-gray-500 mt-4 text-sm">
-            + Agriculture, Mines, Admin publiques, Agroalimentaire, Génie civil, Écoles, Services soutien, Foresterie
+            + Génie civil, CHSLD, Services sociaux, Entreposage, Énergie, Services pro, Admin publique...
         </p>
-    </div>
-
-    <!-- Technologies -->
-    <div class="max-w-4xl mx-auto px-4 mb-16">
-        <h2 class="text-3xl font-bold text-center mb-8">⚙️ Technologies</h2>
-        
-        <div class="flex flex-wrap justify-center gap-4">
-            <div class="glass-card px-6 py-3 flex items-center gap-3">
-                <span class="text-2xl">🔷</span>
-                <span>Neo4j 5.x</span>
-            </div>
-            <div class="glass-card px-6 py-3 flex items-center gap-3">
-                <span class="text-2xl">🐍</span>
-                <span>Python / FastAPI</span>
-            </div>
-            <div class="glass-card px-6 py-3 flex items-center gap-3">
-                <span class="text-2xl">📊</span>
-                <span>Plotly.js</span>
-            </div>
-            <div class="glass-card px-6 py-3 flex items-center gap-3">
-                <span class="text-2xl">🤖</span>
-                <span>LangGraph Agents</span>
-            </div>
-            <div class="glass-card px-6 py-3 flex items-center gap-3">
-                <span class="text-2xl">🎨</span>
-                <span>Tailwind CSS</span>
-            </div>
-        </div>
     </div>
 
     <!-- Agents IA -->
     <div class="max-w-6xl mx-auto px-4 mb-16">
-        <h2 class="text-3xl font-bold text-center mb-8">🤖 Agents IA Intégrés</h2>
+        <h2 class="text-3xl font-bold text-center mb-8">🤖 6 Agents IA</h2>
         
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div class="glass-card p-4 text-center">
                 <div class="text-3xl mb-2">🎥</div>
                 <div class="text-cyan-400 font-bold text-sm">VisionAI</div>
-                <div class="text-gray-500 text-xs">Surveillance</div>
             </div>
             <div class="glass-card p-4 text-center">
                 <div class="text-3xl mb-2">🦴</div>
                 <div class="text-green-400 font-bold text-sm">ErgoAI</div>
-                <div class="text-gray-500 text-xs">Ergonomie</div>
             </div>
             <div class="glass-card p-4 text-center">
                 <div class="text-3xl mb-2">🚨</div>
                 <div class="text-red-400 font-bold text-sm">AlertAI</div>
-                <div class="text-gray-500 text-xs">Alertes</div>
             </div>
             <div class="glass-card p-4 text-center">
                 <div class="text-3xl mb-2">✅</div>
                 <div class="text-purple-400 font-bold text-sm">ComplyAI</div>
-                <div class="text-gray-500 text-xs">Conformité</div>
             </div>
             <div class="glass-card p-4 text-center">
                 <div class="text-3xl mb-2">🔮</div>
                 <div class="text-orange-400 font-bold text-sm">PredictAI</div>
-                <div class="text-gray-500 text-xs">Prédictions</div>
             </div>
             <div class="glass-card p-4 text-center">
                 <div class="text-3xl mb-2">🎯</div>
                 <div class="text-pink-400 font-bold text-sm">HUGO</div>
-                <div class="text-gray-500 text-xs">Orchestrateur</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technologies -->
+    <div class="max-w-4xl mx-auto px-4 mb-16">
+        <div class="glass-card p-6">
+            <div class="flex flex-wrap justify-center gap-4 text-sm text-gray-400">
+                <span>🔷 Neo4j 5.x</span>
+                <span>•</span>
+                <span>🐍 Python / FastAPI</span>
+                <span>•</span>
+                <span>📊 Plotly.js</span>
+                <span>•</span>
+                <span>🤖 LangGraph</span>
+                <span>•</span>
+                <span>🎨 Tailwind CSS</span>
             </div>
         </div>
     </div>
 
     <!-- Footer -->
     <footer class="text-center py-12 px-4 border-t border-white/10">
-        <div class="flex justify-center gap-6 mb-6">
-            <a href="https://github.com/Preventera/EDGY-AgenticX5" target="_blank" 
-               class="glass-card px-6 py-3 hover:bg-white/10 transition-all">
-                📂 GitHub
-            </a>
-            <a href="https://preventera.com" target="_blank" 
-               class="glass-card px-6 py-3 hover:bg-white/10 transition-all">
-                🌐 Preventera
-            </a>
-        </div>
         <p class="text-gray-400">
             🛡️ SafetyGraph | EDGY-AgenticX5 | Preventera | GenAISafety
         </p>
         <p class="text-gray-500 text-sm mt-2">
-            Données anonymisées conformément à la Loi 25 du Québec
+            Données anonymisées • Loi 25 Québec • ISO 45001
         </p>
         <p class="text-gray-600 text-xs mt-4">
-            © 2025 GenAISafety - Tous droits réservés
+            © 2025 GenAISafety
         </p>
     </footer>
 
@@ -329,7 +320,7 @@
 <script>
 // Generate stars
 const starsContainer = document.getElementById('stars');
-for (let i = 0; i < 100; i++) {
+for (let i = 0; i < 80; i++) {
     const star = document.createElement('div');
     star.className = 'star';
     star.style.left = Math.random() * 100 + '%';
