@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 Générateur Cypher SST - SafetyGraph</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+        
+        * { font-family: 'Inter', sans-serif; }
+        code, pre { font-family: 'JetBrains Mono', monospace; }
+        
+        body {
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+        }
+        
+        .glass-card:hover {
+            border-color: rgba(0, 212, 255, 0.3);
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, #00d4ff 0%, #00ff88 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .sector-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .sector-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.2);
+        }
+        
+        .sector-card.selected {
+            border-color: #00d4ff;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+        }
+        
+        .code-block {
+            background: #1e1e2e;
+            border-radius: 12px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .code-block::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .code-block::-webkit-scrollbar-track {
+            background: #1e1e2e;
+        }
+        
+        .code-block::-webkit-scrollbar-thumb {
+            background: #3b3b5c;
+            border-radius: 4px;
+        }
+        
+        .priority-critical { border-left: 4px solid #ef4444; }
+        .priority-high { border-left: 4px solid #f97316; }
+        .priority-medium { border-left: 4px solid #eab308; }
+        
+        .tab-btn.active {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: #00d4ff;
+        }
+        
+        .copy-btn {
+            transition: all 0.2s ease;
+        }
+        
+        .copy-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .copy-btn.copied {
+            background: #22c55e !important;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .generating {
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body class="text-white p-4 md:p-8">
+
+    <!-- Header -->
+    <header class="text-center mb-8">
+        <div class="text-5xl mb-4">🔧</div>
+        <h1 class="text-3xl md:text-4xl font-bold mb-2">
+            <span class="gradient-text">Générateur Cypher SST</span>
+        </h1>
+        <p class="text-gray-400">
+            Générez automatiquement des requêtes Neo4j personnalisées selon le profil CNESST de votre secteur
+        </p>
+        <div class="flex justify-center gap-4 mt-4">
+            <a href="index.html" class="text-cyan-400 hover:text-cyan-300 text-sm">← Retour SafetyGraph</a>
+            <a href="https://github.com/Preventera/EDGY-AgenticX5" target="_blank" class="text-cyan-400 hover:text-cyan-300 text-sm">📂 GitHub</a>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto">
+        
+        <!-- Step 1: Sélection du secteur -->
+        <div class="glass-card p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <span class="bg-cyan-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm">1</span>
+                Sélectionnez votre secteur SCIAN
+            </h2>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3" id="sectorsGrid">
+                <!-- Secteurs générés par JS -->
+            </div>
+        </div>
+
+        <!-- Step 2: Profil de risques -->
+        <div class="glass-card p-6 mb-6" id="riskProfileSection" style="display: none;">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <span class="bg-cyan-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm">2</span>
+                Profil de risques CNESST
+                <span class="text-gray-400 font-normal text-base ml-2" id="selectedSectorName"></span>
+            </h2>
+            
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Statistiques -->
+                <div>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="bg-white/5 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-orange-400" id="lesionsCount">-</div>
+                            <div class="text-gray-400 text-sm">Lésions/an</div>
+                        </div>
+                        <div class="bg-white/5 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-cyan-400" id="risksCount">-</div>
+                            <div class="text-gray-400 text-sm">Types de risques</div>
+                        </div>
+                    </div>
+                    
+                    <h3 class="text-sm font-semibold text-gray-300 mb-2">Certifications requises</h3>
+                    <div class="flex flex-wrap gap-2 mb-4" id="certificationsList"></div>
+                    
+                    <h3 class="text-sm font-semibold text-gray-300 mb-2">EPI critiques</h3>
+                    <div class="flex flex-wrap gap-2" id="epiList"></div>
+                </div>
+                
+                <!-- Risques prioritaires -->
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-300 mb-3">Risques prioritaires</h3>
+                    <div class="space-y-2" id="risksList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Options de génération -->
+        <div class="glass-card p-6 mb-6" id="optionsSection" style="display: none;">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <span class="bg-cyan-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm">3</span>
+                Options de génération
+            </h2>
+            
+            <div class="grid md:grid-cols-3 gap-4 mb-6">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">Catégories de requêtes</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="optDiagnostic" checked class="rounded bg-white/10 border-white/20">
+                            <span class="text-sm">📋 Diagnostic initial</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="optRisques" checked class="rounded bg-white/10 border-white/20">
+                            <span class="text-sm">⚠️ Analyse des risques</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="optAlertes" checked class="rounded bg-white/10 border-white/20">
+                            <span class="text-sm">🚨 Alertes proactives</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="optConformite" checked class="rounded bg-white/10 border-white/20">
+                            <span class="text-sm">✅ Conformité & audit</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="optAgents" checked class="rounded bg-white/10 border-white/20">
+                            <span class="text-sm">🤖 Agents IA</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="optDashboard" checked class="rounded bg-white/10 border-white/20">
+                            <span class="text-sm">📊 Dashboard</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">Nom de l'organisation (optionnel)</label>
+                    <input type="text" id="orgName" placeholder="Ex: Hydro-Québec" 
+                           class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none">
+                    
+                    <label class="block text-sm text-gray-400 mb-2 mt-4">Nombre d'employés (optionnel)</label>
+                    <input type="number" id="nbEmployes" placeholder="Ex: 500" 
+                           class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none">
+                </div>
+                
+                <div class="flex flex-col justify-end">
+                    <button onclick="generateCypher()" id="generateBtn"
+                            class="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold py-4 px-6 rounded-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2">
+                        <span>⚡</span>
+                        <span>Générer les requêtes</span>
+                    </button>
+                    <p class="text-gray-500 text-xs text-center mt-2">~50 requêtes personnalisées</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Résultats -->
+        <div class="glass-card p-6" id="resultsSection" style="display: none;">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                    <span class="bg-green-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm">✓</span>
+                    Requêtes générées
+                    <span class="text-gray-400 font-normal text-base ml-2" id="queryCount"></span>
+                </h2>
+                
+                <div class="flex gap-2">
+                    <button onclick="copyAllCypher()" id="copyAllBtn"
+                            class="copy-btn bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                        <span>📋</span> Copier tout
+                    </button>
+                    <button onclick="downloadCypher()" 
+                            class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                        <span>💾</span> Télécharger .cypher
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Tabs -->
+            <div class="flex flex-wrap gap-2 mb-4" id="categoryTabs"></div>
+            
+            <!-- Code -->
+            <div class="code-block p-4">
+                <pre><code class="language-cypher" id="cypherCode"></code></pre>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center py-8 mt-8 text-gray-500 text-sm">
+        <p>🛡️ SafetyGraph | EDGY-AgenticX5 | Preventera | GenAISafety</p>
+        <p class="mt-1">Données basées sur les profils CNESST du Québec</p>
+    </footer>
+
+<script>
+// ============================================================================
+// BASE DE DONNÉES DES PROFILS CNESST
+// ============================================================================
+
+const PROFILS_CNESST = {
+    "236": {
+        scian: "236",
+        nom: "Construction de bâtiments",
+        nom_court: "Construction",
+        emoji: "🏗️",
+        lesions_annuelles: 18000,
+        risques_prioritaires: [
+            { categorie: "chute", pct: 28, priorite: "CRITIQUE", emoji: "🪜" },
+            { categorie: "mecanique", pct: 22, priorite: "CRITIQUE", emoji: "🔧" },
+            { categorie: "electrique", pct: 12, priorite: "CRITIQUE", emoji: "⚡" },
+            { categorie: "ergonomique", pct: 18, priorite: "ELEVE", emoji: "🦴" },
+            { categorie: "bruit", pct: 8, priorite: "MOYEN", emoji: "🔊" },
+            { categorie: "chimique", pct: 7, priorite: "ELEVE", emoji: "🧪" },
+            { categorie: "thermique", pct: 5, priorite: "MOYEN", emoji: "☀️" }
+        ],
+        certifications: ["ASP Construction", "Travail en hauteur", "LOTO", "SIMDUT", "Premiers soins"],
+        epi: ["casque", "harnais", "lunettes", "gants", "bottes", "gilet"],
+        mots_cles: ["chute", "hauteur", "échafaud", "échelle", "excavation", "grue", "électrique"]
+    },
+    "621": {
+        scian: "621",
+        nom: "Services de soins ambulatoires",
+        nom_court: "Soins ambulatoires",
+        emoji: "🏥",
+        lesions_annuelles: 25000,
+        risques_prioritaires: [
+            { categorie: "ergonomique", pct: 35, priorite: "CRITIQUE", emoji: "🦴" },
+            { categorie: "biologique", pct: 25, priorite: "CRITIQUE", emoji: "🦠" },
+            { categorie: "psychosocial", pct: 20, priorite: "ELEVE", emoji: "🧠" },
+            { categorie: "chimique", pct: 10, priorite: "ELEVE", emoji: "🧪" },
+            { categorie: "chute", pct: 5, priorite: "MOYEN", emoji: "🪜" },
+            { categorie: "violence", pct: 5, priorite: "ELEVE", emoji: "⚠️" }
+        ],
+        certifications: ["SIMDUT", "Premiers soins", "RCR", "PDSB", "Prévention infections"],
+        epi: ["gants", "masque", "blouse", "lunettes", "écran facial"],
+        mots_cles: ["manutention patient", "piqûre", "infection", "stress", "agression"]
+    },
+    "622": {
+        scian: "622",
+        nom: "Hôpitaux",
+        nom_court: "Hôpitaux",
+        emoji: "🏨",
+        lesions_annuelles: 35000,
+        risques_prioritaires: [
+            { categorie: "ergonomique", pct: 40, priorite: "CRITIQUE", emoji: "🦴" },
+            { categorie: "biologique", pct: 22, priorite: "CRITIQUE", emoji: "🦠" },
+            { categorie: "psychosocial", pct: 18, priorite: "ELEVE", emoji: "🧠" },
+            { categorie: "chimique", pct: 8, priorite: "ELEVE", emoji: "🧪" },
+            { categorie: "violence", pct: 7, priorite: "ELEVE", emoji: "⚠️" },
+            { categorie: "radiation", pct: 5, priorite: "ELEVE", emoji: "☢️" }
+        ],
+        certifications: ["SIMDUT", "PDSB", "RCR", "Prévention infections", "Radioprotection"],
+        epi: ["gants", "masque N95", "blouse", "lunettes", "tablier plombé"],
+        mots_cles: ["patient", "civière", "piqûre", "sang", "chimio", "radiation"]
+    },
+    "31": {
+        scian: "31",
+        nom: "Fabrication d'aliments",
+        nom_court: "Agroalimentaire",
+        emoji: "🍖",
+        lesions_annuelles: 12000,
+        risques_prioritaires: [
+            { categorie: "ergonomique", pct: 30, priorite: "CRITIQUE", emoji: "🦴" },
+            { categorie: "mecanique", pct: 25, priorite: "CRITIQUE", emoji: "🔧" },
+            { categorie: "chute", pct: 15, priorite: "ELEVE", emoji: "🪜" },
+            { categorie: "thermique", pct: 12, priorite: "ELEVE", emoji: "🔥" },
+            { categorie: "chimique", pct: 10, priorite: "MOYEN", emoji: "🧪" },
+            { categorie: "bruit", pct: 8, priorite: "MOYEN", emoji: "🔊" }
+        ],
+        certifications: ["SIMDUT", "LOTO", "Hygiène alimentaire", "Cariste", "Premiers soins"],
+        epi: ["gants", "tablier", "bottes antidérapantes", "résille", "protecteurs auditifs"],
+        mots_cles: ["coupure", "brûlure", "froid", "manutention", "convoyeur", "trancheuse"]
+    },
+    "32": {
+        scian: "32",
+        nom: "Fabrication de produits",
+        nom_court: "Fabrication",
+        emoji: "🏭",
+        lesions_annuelles: 20000,
+        risques_prioritaires: [
+            { categorie: "mecanique", pct: 30, priorite: "CRITIQUE", emoji: "🔧" },
+            { categorie: "ergonomique", pct: 25, priorite: "CRITIQUE", emoji: "🦴" },
+            { categorie: "chimique", pct: 15, priorite: "ELEVE", emoji: "🧪" },
+            { categorie: "bruit", pct: 12, priorite: "ELEVE", emoji: "🔊" },
+            { categorie: "chute", pct: 10, priorite: "MOYEN", emoji: "🪜" },
+            { categorie: "electrique", pct: 8, priorite: "ELEVE", emoji: "⚡" }
+        ],
+        certifications: ["SIMDUT", "LOTO", "Cariste", "Pont roulant", "Premiers soins"],
+        epi: ["lunettes", "gants", "protecteurs auditifs", "chaussures sécurité", "casque"],
+        mots_cles: ["machine", "presse", "coincement", "écrasement", "solvant", "poussière"]
+    },
+    "33": {
+        scian: "33",
+        nom: "Fabrication machines/métaux",
+        nom_court: "Métallurgie",
+        emoji: "⚙️",
+        lesions_annuelles: 13000,
+        risques_prioritaires: [
+            { categorie: "mecanique", pct: 35, priorite: "CRITIQUE", emoji: "🔧" },
+            { categorie: "ergonomique", pct: 20, priorite: "ELEVE", emoji: "🦴" },
+            { categorie: "bruit", pct: 15, priorite: "ELEVE", emoji: "🔊" },
+            { categorie: "chimique", pct: 12, priorite: "ELEVE", emoji: "🧪" },
+            { categorie: "thermique", pct: 10, priorite: "ELEVE", emoji: "🔥" },
+            { categorie: "electrique", pct: 8, priorite: "ELEVE", emoji: "⚡" }
+        ],
+        certifications: ["SIMDUT", "LOTO", "Soudage", "Pont roulant", "Cariste"],
+        epi: ["lunettes", "masque soudeur", "gants", "tablier cuir", "protecteurs auditifs"],
+        mots_cles: ["soudure", "meulage", "tour", "presse", "métal chaud", "fumées"]
+    },
+    "44": {
+        scian: "44",
+        nom: "Commerce de détail",
+        nom_court: "Commerce",
+        emoji: "🛒",
+        lesions_annuelles: 25000,
+        risques_prioritaires: [
+            { categorie: "ergonomique", pct: 35, priorite: "CRITIQUE", emoji: "🦴" },
+            { categorie: "chute", pct: 25, priorite: "ELEVE", emoji: "🪜" },
+            { categorie: "mecanique", pct: 15, priorite: "MOYEN", emoji: "🔧" },
+            { categorie: "violence", pct: 12, priorite: "ELEVE", emoji: "⚠️" },
+            { categorie: "psychosocial", pct: 8, priorite: "MOYEN", emoji: "🧠" },
+            { categorie: "thermique", pct: 5, priorite: "MOYEN", emoji: "🔥" }
+        ],
+        certifications: ["SIMDUT", "Manutention", "Cariste", "Premiers soins"],
+        epi: ["chaussures sécurité", "gants manutention", "ceinture lombaire"],
+        mots_cles: ["manutention", "boîte", "palette", "escabeau", "vol", "agression"]
+    },
+    "72": {
+        scian: "72",
+        nom: "Hébergement et restauration",
+        nom_court: "Resto/Hôtel",
+        emoji: "🍽️",
+        lesions_annuelles: 15000,
+        risques_prioritaires: [
+            { categorie: "ergonomique", pct: 28, priorite: "CRITIQUE", emoji: "🦴" },
+            { categorie: "chute", pct: 22, priorite: "ELEVE", emoji: "🪜" },
+            { categorie: "thermique", pct: 20, priorite: "ELEVE", emoji: "🔥" },
+            { categorie: "coupure", pct: 15, priorite: "ELEVE", emoji: "🔪" },
+            { categorie: "chimique", pct: 8, priorite: "MOYEN", emoji: "🧪" },
+            { categorie: "psychosocial", pct: 7, priorite: "MOYEN", emoji: "🧠" }
+        ],
+        certifications: ["SIMDUT", "Hygiène alimentaire", "Premiers soins", "MAPAQ"],
+        epi: ["chaussures antidérapantes", "tablier", "gants cuisine", "gants four"],
+        mots_cles: ["brûlure", "coupure", "huile chaude", "plancher glissant", "stress"]
+    },
+    "48": {
+        scian: "48",
+        nom: "Transport",
+        nom_court: "Transport",
+        emoji: "🚛",
+        lesions_annuelles: 12000,
+        risques_prioritaires: [
+            { categorie: "ergonomique", pct: 30, priorite: "CRITIQUE", emoji: "🦴" },
+            { categorie: "mecanique", pct: 25, priorite: "CRITIQUE", emoji: "🔧" },
+            { categorie: "chute", pct: 18, priorite: "ELEVE", emoji: "🪜" },
+            { categorie: "collision", pct: 12, priorite: "CRITIQUE", emoji: "🚛" },
+            { categorie: "psychosocial", pct: 10, priorite: "MOYEN", emoji: "🧠" },
+            { categorie: "vibration", pct: 5, priorite: "MOYEN", emoji: "〰️" }
+        ],
+        certifications: ["Classe 1/3", "Cariste", "SIMDUT", "Matières dangereuses"],
+        epi: ["chaussures sécurité", "gilet haute visibilité", "gants"],
+        mots_cles: ["camion", "chargement", "quai", "chariot élévateur", "fatigue"]
+    },
+    "21": {
+        scian: "21",
+        nom: "Extraction minière",
+        nom_court: "Mines",
+        emoji: "⛏️",
+        lesions_annuelles: 3000,
+        risques_prioritaires: [
+            { categorie: "mecanique", pct: 28, priorite: "CRITIQUE", emoji: "🔧" },
+            { categorie: "chute", pct: 18, priorite: "CRITIQUE", emoji: "🪜" },
+            { categorie: "effondrement", pct: 15, priorite: "CRITIQUE", emoji: "⛏️" },
+            { categorie: "chimique", pct: 12, priorite: "ELEVE", emoji: "🧪" },
+            { categorie: "bruit", pct: 12, priorite: "ELEVE", emoji: "🔊" },
+            { categorie: "ergonomique", pct: 10, priorite: "ELEVE", emoji: "🦴" }
+        ],
+        certifications: ["Module minier", "Espace clos", "SIMDUT", "Sauvetage minier"],
+        epi: ["casque lampe", "bottes cap acier", "lunettes", "auto-sauveteur"],
+        mots_cles: ["souterrain", "dynamitage", "ventilation", "machinerie lourde"]
+    },
+    "22": {
+        scian: "22",
+        nom: "Services publics",
+        nom_court: "Énergie/Eau",
+        emoji: "⚡",
+        lesions_annuelles: 2500,
+        risques_prioritaires: [
+            { categorie: "electrique", pct: 30, priorite: "CRITIQUE", emoji: "⚡" },
+            { categorie: "chute", pct: 20, priorite: "CRITIQUE", emoji: "🪜" },
+            { categorie: "mecanique", pct: 18, priorite: "ELEVE", emoji: "🔧" },
+            { categorie: "espace_clos", pct: 12, priorite: "CRITIQUE", emoji: "🕳️" },
+            { categorie: "chimique", pct: 10, priorite: "ELEVE", emoji: "🧪" },
+            { categorie: "ergonomique", pct: 10, priorite: "MOYEN", emoji: "🦴" }
+        ],
+        certifications: ["Électricité haute tension", "LOTO", "Espace clos", "Travail en hauteur"],
+        epi: ["gants isolants", "harnais", "casque", "lunettes arc flash", "détecteur gaz"],
+        mots_cles: ["haute tension", "poteau", "transformateur", "égout", "chlore"]
+    },
+    "54": {
+        scian: "54",
+        nom: "Services professionnels",
+        nom_court: "Services pro",
+        emoji: "💼",
+        lesions_annuelles: 3000,
+        risques_prioritaires: [
+            { categorie: "ergonomique", pct: 45, priorite: "CRITIQUE", emoji: "🦴" },
+            { categorie: "psychosocial", pct: 30, priorite: "ELEVE", emoji: "🧠" },
+            { categorie: "chute", pct: 10, priorite: "MOYEN", emoji: "🪜" },
+            { categorie: "electrique", pct: 8, priorite: "MOYEN", emoji: "⚡" },
+            { categorie: "violence", pct: 7, priorite: "MOYEN", emoji: "⚠️" }
+        ],
+        certifications: ["Premiers soins", "Ergonomie bureau"],
+        epi: ["chaise ergonomique", "écran ajustable", "clavier ergonomique"],
+        mots_cles: ["écran", "posture", "stress", "surcharge", "télétravail"]
+    }
+};
+
+// ============================================================================
+// VARIABLES GLOBALES
+// ============================================================================
+
+let selectedSector = null;
+let generatedCypher = '';
+let generatedSections = {};
+
+// ============================================================================
+// INITIALISATION
+// ============================================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    renderSectors();
+});
+
+function renderSectors() {
+    const grid = document.getElementById('sectorsGrid');
+    
+    // Trier par lésions annuelles
+    const sorted = Object.values(PROFILS_CNESST).sort((a, b) => b.lesions_annuelles - a.lesions_annuelles);
+    
+    grid.innerHTML = sorted.map(profil => `
+        <div class="sector-card glass-card p-4 text-center" 
+             data-scian="${profil.scian}"
+             onclick="selectSector('${profil.scian}')">
+            <div class="text-3xl mb-2">${profil.emoji}</div>
+            <div class="font-semibold text-sm">${profil.nom_court}</div>
+            <div class="text-xs text-gray-400">SCIAN ${profil.scian}</div>
+            <div class="text-xs text-orange-400 mt-1">${profil.lesions_annuelles.toLocaleString()}/an</div>
+        </div>
+    `).join('');
+}
+
+// ============================================================================
+// SÉLECTION DU SECTEUR
+// ============================================================================
+
+function selectSector(scian) {
+    selectedSector = PROFILS_CNESST[scian];
+    
+    // Mettre à jour l'UI des cartes
+    document.querySelectorAll('.sector-card').forEach(card => {
+        card.classList.remove('selected');
+        if (card.dataset.scian === scian) {
+            card.classList.add('selected');
+        }
+    });
+    
+    // Afficher le profil de risques
+    renderRiskProfile();
+    
+    // Afficher les sections suivantes
+    document.getElementById('riskProfileSection').style.display = 'block';
+    document.getElementById('optionsSection').style.display = 'block';
+    document.getElementById('resultsSection').style.display = 'none';
+    
+    // Scroll vers le profil
+    document.getElementById('riskProfileSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderRiskProfile() {
+    const profil = selectedSector;
+    
+    document.getElementById('selectedSectorName').textContent = `— ${profil.nom} (SCIAN ${profil.scian})`;
+    document.getElementById('lesionsCount').textContent = profil.lesions_annuelles.toLocaleString();
+    document.getElementById('risksCount').textContent = profil.risques_prioritaires.length;
+    
+    // Certifications
+    document.getElementById('certificationsList').innerHTML = profil.certifications.map(c => 
+        `<span class="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs">${c}</span>`
+    ).join('');
+    
+    // EPI
+    document.getElementById('epiList').innerHTML = profil.epi.map(e => 
+        `<span class="bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs">${e}</span>`
+    ).join('');
+    
+    // Risques
+    document.getElementById('risksList').innerHTML = profil.risques_prioritaires.map(r => {
+        const priorityClass = r.priorite === 'CRITIQUE' ? 'priority-critical' : 
+                             r.priorite === 'ELEVE' ? 'priority-high' : 'priority-medium';
+        return `
+            <div class="bg-white/5 rounded-lg p-3 ${priorityClass}">
+                <div class="flex justify-between items-center">
+                    <span class="flex items-center gap-2">
+                        <span>${r.emoji}</span>
+                        <span class="font-medium capitalize">${r.categorie}</span>
+                    </span>
+                    <span class="text-orange-400 font-bold">${r.pct}%</span>
+                </div>
+                <div class="text-xs text-gray-400 mt-1">Priorité: ${r.priorite}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ============================================================================
+// GÉNÉRATION DES REQUÊTES CYPHER
+// ============================================================================
+
+function generateCypher() {
+    const btn = document.getElementById('generateBtn');
+    btn.innerHTML = '<span class="generating">⚡ Génération en cours...</span>';
+    btn.disabled = true;
+    
+    setTimeout(() => {
+        const profil = selectedSector;
+        const orgName = document.getElementById('orgName').value;
+        const nbEmployes = document.getElementById('nbEmployes').value;
+        
+        // Options sélectionnées
+        const options = {
+            diagnostic: document.getElementById('optDiagnostic').checked,
+            risques: document.getElementById('optRisques').checked,
+            alertes: document.getElementById('optAlertes').checked,
+            conformite: document.getElementById('optConformite').checked,
+            agents: document.getElementById('optAgents').checked,
+            dashboard: document.getElementById('optDashboard').checked
+        };
+        
+        // Générer les sections
+        generatedSections = {};
+        let fullCypher = generateHeader(profil);
+        
+        if (options.diagnostic) {
+            generatedSections['diagnostic'] = generateDiagnostic(profil);
+            fullCypher += generatedSections['diagnostic'];
+        }
+        
+        if (options.risques) {
+            generatedSections['risques'] = generateRisques(profil);
+            fullCypher += generatedSections['risques'];
+        }
+        
+        if (options.alertes) {
+            generatedSections['alertes'] = generateAlertes(profil);
+            fullCypher += generatedSections['alertes'];
+        }
+        
+        if (options.conformite) {
+            generatedSections['conformite'] = generateConformite(profil);
+            fullCypher += generatedSections['conformite'];
+        }
+        
+        if (options.agents) {
+            generatedSections['agents'] = generateAgents(profil);
+            fullCypher += generatedSections['agents'];
+        }
+        
+        if (options.dashboard) {
+            generatedSections['dashboard'] = generateDashboard(profil);
+            fullCypher += generatedSections['dashboard'];
+        }
+        
+        fullCypher += generateFooter(profil);
+        
+        generatedCypher = fullCypher;
+        
+        // Afficher les résultats
+        renderResults(options);
+        
+        btn.innerHTML = '<span>⚡</span><span>Générer les requêtes</span>';
+        btn.disabled = false;
+        
+        document.getElementById('resultsSection').style.display = 'block';
+        document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 500);
+}
+
+function getScianFilter(profil) {
+    const scian = profil.scian;
+    let codes = [scian];
+    
+    if (scian === '236') codes = ['236', '237', '238'];
+    if (scian === '621') codes = ['621', '622', '623', '624'];
+    if (scian === '31') codes = ['31', '311', '312'];
+    if (scian === '32') codes = ['32', '321', '322', '323', '324', '325'];
+    if (scian === '33') codes = ['33', '331', '332', '333'];
+    if (scian === '44') codes = ['44', '441', '442', '443', '444', '445'];
+    if (scian === '48') codes = ['48', '481', '482', '483', '484'];
+    
+    return `o.sector_scian IN ['${codes.join("', '")}']`;
+}
+
+function generateHeader(profil) {
+    const date = new Date().toLocaleString('fr-CA');
+    return `// ============================================================================
+// 🛡️ REQUÊTES CYPHER GÉNÉRÉES - SafetyGraph
+// ============================================================================
+// Secteur: ${profil.nom} (SCIAN ${profil.scian})
+// Profil de risques: CNESST Québec
+// Lésions annuelles secteur: ${profil.lesions_annuelles.toLocaleString()}
+// Généré le: ${date}
+// Générateur: SafetyGraph Web Interface
+// ============================================================================
+
+`;
+}
+
+function generateDiagnostic(profil) {
+    const filter = getScianFilter(profil);
+    return `
+// ============================================================================
+// 📋 DIAGNOSTIC INITIAL
+// ============================================================================
+
+// Vue d'ensemble de l'organisation
+MATCH (o:Organization)
+WHERE ${filter}
+OPTIONAL MATCH (o)<-[:APPARTIENT_A]-(z:Zone)
+OPTIONAL MATCH (z)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+OPTIONAL MATCH (o)<-[:APPARTIENT_A]-(t:Team)<-[:MEMBRE_DE]-(p:Person)
+RETURN o.name AS organisation,
+       o.nb_employes AS employes,
+       count(DISTINCT z) AS nb_zones,
+       count(DISTINCT r) AS nb_risques,
+       count(DISTINCT p) AS nb_travailleurs,
+       round(avg(r.probabilite * r.gravite) * 100) / 100 AS score_risque_moyen
+ORDER BY nb_risques DESC;
+
+// Distribution des zones par niveau de risque
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)
+WHERE ${filter}
+RETURN z.risk_level AS niveau_risque,
+       count(z) AS nb_zones
+ORDER BY CASE z.risk_level 
+    WHEN 'critique' THEN 1 
+    WHEN 'eleve' THEN 2 
+    WHEN 'moyen' THEN 3 
+    ELSE 4 END;
+
+// Répartition des risques par catégorie
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+WHERE ${filter}
+RETURN r.categorie AS categorie,
+       count(r) AS nb_risques,
+       round(avg(r.probabilite * r.gravite) * 100) / 100 AS score_moyen
+ORDER BY nb_risques DESC;
+
+`;
+}
+
+function generateRisques(profil) {
+    const filter = getScianFilter(profil);
+    const topRisques = profil.risques_prioritaires.slice(0, 3);
+    
+    let cypher = `
+// ============================================================================
+// ⚠️ ANALYSE DES RISQUES PRIORITAIRES
+// ============================================================================
+
+`;
+    
+    topRisques.forEach((risque, i) => {
+        cypher += `
+// ${risque.emoji} Risques ${risque.categorie.toUpperCase()} (${risque.pct}% des lésions)
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+WHERE ${filter}
+  AND r.categorie = '${risque.categorie}'
+RETURN z.name AS zone,
+       r.description AS risque,
+       r.probabilite AS P,
+       r.gravite AS G,
+       r.probabilite * r.gravite AS score,
+       CASE WHEN r.probabilite * r.gravite >= 15 THEN '🔴 TOLÉRANCE ZÉRO'
+            WHEN r.probabilite * r.gravite >= 10 THEN '🟠 ÉLEVÉ'
+            ELSE '🟡 MODÉRÉ' END AS priorite
+ORDER BY score DESC
+LIMIT 20;
+
+// Travailleurs exposés aux risques ${risque.categorie}
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+MATCH (p:Person)-[:TRAVAILLE_DANS]->(z)
+WHERE ${filter}
+  AND r.categorie = '${risque.categorie}'
+WITH p, count(DISTINCT r) AS nb_risques, max(r.probabilite * r.gravite) AS score_max
+RETURN p.matricule AS travailleur,
+       p.age_groupe AS age,
+       nb_risques,
+       score_max
+ORDER BY score_max DESC
+LIMIT 20;
+
+`;
+    });
+    
+    return cypher;
+}
+
+function generateAlertes(profil) {
+    const filter = getScianFilter(profil);
+    return `
+// ============================================================================
+// 🚨 ALERTES ET SURVEILLANCE PROACTIVE
+// ============================================================================
+
+// 🔴 Risques Tolérance Zéro (score >= 15)
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+WHERE ${filter}
+  AND r.probabilite * r.gravite >= 15
+RETURN '🔴 TOLÉRANCE ZÉRO' AS alerte,
+       o.name AS organisation,
+       z.name AS zone,
+       r.categorie AS type_risque,
+       r.description AS description,
+       r.probabilite * r.gravite AS score
+ORDER BY score DESC;
+
+// 🟠 Concentration de risques (hotspots)
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+WHERE ${filter}
+WITH z, o, count(r) AS nb_risques, avg(r.probabilite * r.gravite) AS score_moyen
+WHERE nb_risques >= 3
+RETURN z.name AS zone_hotspot,
+       o.name AS organisation,
+       nb_risques,
+       round(score_moyen * 100) / 100 AS score_moyen
+ORDER BY score_moyen DESC;
+
+// 👤 Jeunes travailleurs (18-24) en zones à risque
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+MATCH (p:Person)-[:TRAVAILLE_DANS]->(z)
+WHERE ${filter}
+  AND p.age_groupe = '18-24'
+  AND r.probabilite * r.gravite >= 10
+RETURN '⚠️ JEUNE TRAVAILLEUR' AS alerte,
+       p.matricule AS travailleur,
+       z.name AS zone,
+       collect(DISTINCT r.categorie) AS types_risques;
+
+// 👴 Travailleurs 55+ exposés aux risques ergonomiques
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+MATCH (p:Person)-[:TRAVAILLE_DANS]->(z)
+WHERE ${filter}
+  AND p.age_groupe IN ['55-64', '65+']
+  AND r.categorie = 'ergonomique'
+RETURN '⚠️ SENIOR - RISQUE ERGO' AS alerte,
+       p.matricule AS travailleur,
+       z.name AS zone,
+       r.description AS risque;
+
+`;
+}
+
+function generateConformite(profil) {
+    const filter = getScianFilter(profil);
+    return `
+// ============================================================================
+// ✅ CONFORMITÉ ET AUDIT
+// ============================================================================
+
+// Vérification EPI par zone critique
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)
+WHERE ${filter}
+  AND z.risk_level IN ['critique', 'eleve']
+RETURN z.name AS zone,
+       z.risk_level AS niveau,
+       z.epi_requis AS epi_definis,
+       CASE WHEN z.epi_requis IS NULL OR size(z.epi_requis) = 0 
+            THEN '❌ EPI NON DÉFINIS'
+            ELSE '✅ OK' END AS statut_epi;
+
+// Taux de certification par équipe
+MATCH (o:Organization)<-[:APPARTIENT_A]-(t:Team)<-[:MEMBRE_DE]-(p:Person)
+WHERE ${filter}
+WITH t, o,
+     count(p) AS total,
+     sum(CASE WHEN p.certifications_sst IS NOT NULL THEN 1 ELSE 0 END) AS certifies
+RETURN o.name AS organisation,
+       t.name AS equipe,
+       total AS nb_membres,
+       certifies AS nb_certifies,
+       round(certifies * 100.0 / total) AS taux_certification
+ORDER BY taux_certification ASC;
+
+// Zones sans risques documentés
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)
+WHERE ${filter}
+  AND NOT EXISTS { MATCH (z)<-[:LOCALISE_DANS]-(:RisqueDanger) }
+RETURN o.name AS organisation,
+       z.name AS zone_sans_risques,
+       '⚠️ AUDIT REQUIS' AS action;
+
+`;
+}
+
+function generateAgents(profil) {
+    const filter = getScianFilter(profil);
+    const topRisques = profil.risques_prioritaires.slice(0, 3).map(r => r.categorie);
+    
+    return `
+// ============================================================================
+// 🤖 REQUÊTES POUR AGENTS IA
+// ============================================================================
+
+// Agent VisionAI - Zones prioritaires surveillance
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+WHERE ${filter}
+  AND z.risk_level = 'critique'
+RETURN DISTINCT z.name AS zone_surveillance,
+       collect(DISTINCT r.categorie) AS types_risques,
+       'VisionAI' AS agent;
+
+// Agent ErgoAI - Postes à analyser
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+MATCH (p:Person)-[:TRAVAILLE_DANS]->(z)
+WHERE ${filter}
+  AND r.categorie = 'ergonomique'
+WITH z, count(DISTINCT p) AS nb_exposes
+WHERE nb_exposes >= 3
+RETURN z.name AS poste_analyse,
+       nb_exposes AS travailleurs_exposes,
+       'ErgoAI' AS agent;
+
+// Agent AlertAI - Déclencheurs
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+WHERE ${filter}
+WITH z, o, avg(r.probabilite * r.gravite) AS score_moyen
+WHERE score_moyen >= 10
+RETURN o.name AS organisation,
+       z.name AS zone,
+       round(score_moyen * 100) / 100 AS score,
+       CASE WHEN score_moyen >= 15 THEN 'CRITIQUE' ELSE 'ÉLEVÉ' END AS niveau_alerte,
+       'AlertAI' AS agent;
+
+// Agent PredictAI - Features ML
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+WHERE ${filter}
+WITH o,
+     count(DISTINCT z) AS nb_zones,
+     count(r) AS nb_risques,
+     avg(r.probabilite * r.gravite) AS score_moyen,
+     sum(CASE WHEN r.probabilite * r.gravite >= 15 THEN 1 ELSE 0 END) AS risques_TZ
+RETURN o.name AS organisation,
+       nb_zones, nb_risques,
+       round(score_moyen * 100) / 100 AS score_moyen,
+       risques_TZ AS tolerance_zero,
+       round(nb_risques * 1.0 / nb_zones * 100) / 100 AS densite;
+
+`;
+}
+
+function generateDashboard(profil) {
+    const filter = getScianFilter(profil);
+    return `
+// ============================================================================
+// 📊 DONNÉES POUR DASHBOARD
+// ============================================================================
+
+// Risques par catégorie (graphique barres)
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+WHERE ${filter}
+RETURN r.categorie AS label,
+       count(r) AS value
+ORDER BY value DESC;
+
+// Zones par niveau (graphique donut)
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)
+WHERE ${filter}
+RETURN z.risk_level AS label, count(z) AS value;
+
+// Matrice de risques (scatter plot)
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+WHERE ${filter}
+RETURN r.probabilite AS x,
+       r.gravite AS y,
+       count(r) AS size,
+       r.categorie AS category;
+
+// KPIs globaux
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+WHERE ${filter}
+WITH count(DISTINCT o) AS orgs,
+     count(DISTINCT z) AS zones,
+     count(r) AS risques,
+     sum(CASE WHEN r.probabilite * r.gravite >= 15 THEN 1 ELSE 0 END) AS TZ,
+     avg(r.probabilite * r.gravite) AS score_moy
+RETURN orgs, zones, risques, TZ,
+       round(score_moy * 100) / 100 AS score_moyen;
+
+// Top 10 organisations par niveau de risque
+MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+WHERE ${filter}
+WITH o, count(r) AS nb_risques, avg(r.probabilite * r.gravite) AS score
+RETURN o.name AS organisation, nb_risques, round(score * 100) / 100 AS score_moyen
+ORDER BY score DESC
+LIMIT 10;
+
+`;
+}
+
+function generateFooter(profil) {
+    return `
+// ============================================================================
+// FIN DES REQUÊTES - SCIAN ${profil.scian} - ${profil.nom_court.toUpperCase()}
+// ============================================================================
+`;
+}
+
+// ============================================================================
+// AFFICHAGE DES RÉSULTATS
+// ============================================================================
+
+function renderResults(options) {
+    // Compter les requêtes
+    const queryCount = (generatedCypher.match(/^MATCH|^RETURN|^WITH/gm) || []).length;
+    document.getElementById('queryCount').textContent = `(~${Math.round(queryCount/2)} requêtes)`;
+    
+    // Tabs
+    const tabs = [];
+    if (options.diagnostic) tabs.push({ id: 'diagnostic', label: '📋 Diagnostic', icon: '📋' });
+    if (options.risques) tabs.push({ id: 'risques', label: '⚠️ Risques', icon: '⚠️' });
+    if (options.alertes) tabs.push({ id: 'alertes', label: '🚨 Alertes', icon: '🚨' });
+    if (options.conformite) tabs.push({ id: 'conformite', label: '✅ Conformité', icon: '✅' });
+    if (options.agents) tabs.push({ id: 'agents', label: '🤖 Agents IA', icon: '🤖' });
+    if (options.dashboard) tabs.push({ id: 'dashboard', label: '📊 Dashboard', icon: '📊' });
+    tabs.unshift({ id: 'all', label: '📄 Tout', icon: '📄' });
+    
+    document.getElementById('categoryTabs').innerHTML = tabs.map((tab, i) => `
+        <button class="tab-btn ${i === 0 ? 'active' : ''} bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg text-sm border border-white/10"
+                onclick="showSection('${tab.id}')">
+            ${tab.label}
+        </button>
+    `).join('');
+    
+    // Code
+    showSection('all');
+}
+
+function showSection(sectionId) {
+    // Update tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    // Show code
+    let code;
+    if (sectionId === 'all') {
+        code = generatedCypher;
+    } else {
+        code = generatedSections[sectionId] || '';
+    }
+    
+    document.getElementById('cypherCode').textContent = code;
+    Prism.highlightElement(document.getElementById('cypherCode'));
+}
+
+// ============================================================================
+// ACTIONS
+// ============================================================================
+
+function copyAllCypher() {
+    navigator.clipboard.writeText(generatedCypher).then(() => {
+        const btn = document.getElementById('copyAllBtn');
+        btn.innerHTML = '<span>✅</span> Copié !';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.innerHTML = '<span>📋</span> Copier tout';
+            btn.classList.remove('copied');
+        }, 2000);
+    });
+}
+
+function downloadCypher() {
+    const profil = selectedSector;
+    const filename = `cypher_${profil.nom_court.toLowerCase().replace(/[^a-z0-9]/g, '_')}_scian${profil.scian}.cypher`;
+    
+    const blob = new Blob([generatedCypher], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    
+    URL.revokeObjectURL(url);
+}
+</script>
+
+</body>
+</html>
