@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-🔧 Patch SafetyGraph API - Ajoute endpoint /api/v1/cartography/import
-EDGY-AgenticX5 | Corrige le bug d'injection organisations
+🛡️ SafetyGraph API v1.2.0 - STATS CORRIGÉES
+EDGY-AgenticX5 | Preventera | GenAISafety
 
-Usage:
-    1. Arrêter l'API actuelle (CTRL+C)
-    2. Copier ce fichier dans le projet
-    3. Lancer: python safetygraph_api_patched.py
+Corrections:
+- Stats fonctionnent même si certains labels n'existent pas
+- Requêtes OPTIONAL MATCH pour robustesse
 """
 
 import os
@@ -32,7 +31,7 @@ logger = logging.getLogger("SafetyGraph.API")
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
-API_VERSION = "1.1.0"  # Version avec fix cartographie
+API_VERSION = "1.2.0"  # Version avec stats corrigées
 API_TITLE = "🛡️ SafetyGraph API"
 
 
@@ -97,16 +96,16 @@ neo4j_conn = Neo4jConnection(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)
 # ============================================================================
 
 class StatsGlobales(BaseModel):
-    organizations: int = Field(..., description="Nombre d'organisations")
-    persons: int = Field(..., description="Nombre de personnes")
-    risks: int = Field(..., description="Nombre de risques")
-    zones: int = Field(..., description="Nombre de zones")
-    teams: int = Field(..., description="Nombre d'équipes")
-    roles: int = Field(..., description="Nombre de rôles")
+    organizations: int = Field(default=0, description="Nombre d'organisations")
+    persons: int = Field(default=0, description="Nombre de personnes")
+    risks: int = Field(default=0, description="Nombre de risques")
+    zones: int = Field(default=0, description="Nombre de zones")
+    teams: int = Field(default=0, description="Nombre d'équipes")
+    roles: int = Field(default=0, description="Nombre de rôles")
 
 
 class CartographyImportRequest(BaseModel):
-    """Requête d'import cartographie - CORRIGÉ"""
+    """Requête d'import cartographie"""
     organizations: List[dict] = Field(default=[], description="Liste des organisations")
     zones: List[dict] = Field(default=[], description="Liste des zones")
     teams: List[dict] = Field(default=[], description="Liste des équipes")
@@ -170,36 +169,49 @@ async def health_check():
     }
 
 
+# ============================================================================
+# 🔧 STATS CORRIGÉES - Requêtes individuelles
+# ============================================================================
+
 @app.get("/api/v1/stats", response_model=StatsGlobales, tags=["Statistiques"])
 async def get_stats():
-    """Statistiques globales du graphe SafetyGraph"""
-    try:
-        query = """
-            MATCH (o:Organization) WITH count(o) as orgs
-            MATCH (p:Person) WITH orgs, count(p) as persons
-            MATCH (r:RisqueDanger) WITH orgs, persons, count(r) as risks
-            MATCH (z:Zone) WITH orgs, persons, risks, count(z) as zones
-            MATCH (t:Team) WITH orgs, persons, risks, zones, count(t) as teams
-            MATCH (ro:Role) 
-            RETURN orgs, persons, risks, zones, teams, count(ro) as roles
-        """
-        result = neo4j_conn.execute_query(query)
-        if result:
-            r = result[0]
-            return StatsGlobales(
-                organizations=r.get("orgs", 0),
-                persons=r.get("persons", 0),
-                risks=r.get("risks", 0),
-                zones=r.get("zones", 0),
-                teams=r.get("teams", 0),
-                roles=r.get("roles", 0)
-            )
-    except Exception as e:
-        logger.error(f"Erreur stats: {e}")
+    """
+    Statistiques globales du graphe SafetyGraph
     
-    return StatsGlobales(
-        organizations=0, persons=0, risks=0, zones=0, teams=0, roles=0
-    )
+    🔧 CORRIGÉ: Utilise des requêtes individuelles pour chaque label
+    afin d'éviter les erreurs si un label n'existe pas.
+    """
+    stats = {
+        "organizations": 0,
+        "persons": 0,
+        "risks": 0,
+        "zones": 0,
+        "teams": 0,
+        "roles": 0
+    }
+    
+    # Requêtes individuelles pour chaque type
+    queries = {
+        "organizations": "MATCH (n:Organization) RETURN count(n) as count",
+        "persons": "MATCH (n:Person) RETURN count(n) as count",
+        "risks": "MATCH (n:RisqueDanger) RETURN count(n) as count",
+        "zones": "MATCH (n:Zone) RETURN count(n) as count",
+        "teams": "MATCH (n:Team) RETURN count(n) as count",
+        "roles": "MATCH (n:Role) RETURN count(n) as count"
+    }
+    
+    for key, query in queries.items():
+        try:
+            result = neo4j_conn.execute_query(query)
+            if result and len(result) > 0:
+                stats[key] = result[0].get("count", 0)
+        except Exception as e:
+            logger.warning(f"Erreur comptage {key}: {e}")
+            stats[key] = 0
+    
+    logger.info(f"📊 Stats: {stats}")
+    
+    return StatsGlobales(**stats)
 
 
 # ============================================================================
@@ -231,7 +243,7 @@ async def import_cartography(data: CartographyImportRequest):
     }
     
     # =========================================
-    # IMPORT ORGANIZATIONS - CORRIGÉ
+    # IMPORT ORGANIZATIONS
     # =========================================
     for org in data.organizations:
         try:
@@ -239,14 +251,12 @@ async def import_cartography(data: CartographyImportRequest):
             name = org.get("name", "Sans nom")
             sector = str(org.get("sector_scian", org.get("sector", "000")))
             
-            # Conversion nb_employes robuste
             nb_emp_raw = org.get("nb_employes", org.get("employees", 0))
             try:
                 nb_emp = int(nb_emp_raw) if nb_emp_raw else 0
             except (ValueError, TypeError):
                 nb_emp = 0
             
-            # CORRECTION: region → region_ssq
             region = org.get("region_ssq", org.get("region", "Non spécifié"))
             
             query = """
@@ -389,7 +399,7 @@ async def import_cartography(data: CartographyImportRequest):
             results["errors"].append(f"Person '{person.get('id', '?')}': {str(e)}")
     
     # =========================================
-    # IMPORT RISKS - CORRIGÉ (string → int)
+    # IMPORT RISKS
     # =========================================
     for risk in data.risks:
         try:
@@ -397,7 +407,6 @@ async def import_cartography(data: CartographyImportRequest):
             description = risk.get("description", "Sans description")
             categorie = risk.get("categorie", "autre")
             
-            # CORRECTION: Conversion robuste string → int
             prob_raw = risk.get("probabilite", 3)
             grav_raw = risk.get("gravite", 3)
             
@@ -497,7 +506,7 @@ async def import_cartography(data: CartographyImportRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 Démarrage SafetyGraph API PATCHED sur http://localhost:8000")
+    print("🚀 Démarrage SafetyGraph API v1.2.0 sur http://localhost:8000")
     print("📖 Documentation: http://localhost:8000/docs")
-    print("🔧 Endpoint corrigé: POST /api/v1/cartography/import")
+    print("🔧 Stats corrigées avec requêtes individuelles")
     uvicorn.run(app, host="0.0.0.0", port=8000)
