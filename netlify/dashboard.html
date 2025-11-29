@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafetyGraph Dashboard Live | EDGY-AgenticX5</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: #e4e4e7;
+        }
+        
+        /* Header */
+        .header {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .logo-icon {
+            font-size: 2rem;
+        }
+        
+        .logo h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .logo span {
+            font-size: 0.8rem;
+            color: #71717a;
+        }
+        
+        .api-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.connected { background: #22c55e; }
+        .status-dot.disconnected { background: #ef4444; }
+        .status-dot.loading { background: #eab308; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Main */
+        .main {
+            padding: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        /* API Config */
+        .api-config {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .api-config label {
+            font-size: 0.9rem;
+            color: #a1a1aa;
+        }
+        
+        .api-config input {
+            flex: 1;
+            min-width: 250px;
+            padding: 0.5rem 1rem;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #e4e4e7;
+            font-size: 0.9rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e4e4e7;
+        }
+        
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .kpi-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.3s;
+        }
+        
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+        
+        .kpi-card.danger {
+            border-color: rgba(239, 68, 68, 0.5);
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), transparent);
+        }
+        
+        .kpi-card.warning {
+            border-color: rgba(234, 179, 8, 0.5);
+            background: linear-gradient(135deg, rgba(234, 179, 8, 0.1), transparent);
+        }
+        
+        .kpi-card.success {
+            border-color: rgba(34, 197, 94, 0.5);
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), transparent);
+        }
+        
+        .kpi-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #fff, #a1a1aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .kpi-label {
+            font-size: 0.9rem;
+            color: #71717a;
+            margin-top: 0.25rem;
+        }
+        
+        .kpi-change {
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        
+        .kpi-change.up { color: #22c55e; }
+        .kpi-change.down { color: #ef4444; }
+        
+        /* Charts Section */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .chart-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .chart-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        
+        /* Tables */
+        .table-section {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .table-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        th {
+            background: rgba(0, 0, 0, 0.3);
+            font-weight: 600;
+            color: #a1a1aa;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+        
+        tr:hover {
+            background: rgba(59, 130, 246, 0.1);
+        }
+        
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .badge-danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+        
+        .badge-warning {
+            background: rgba(234, 179, 8, 0.2);
+            color: #eab308;
+        }
+        
+        .badge-success {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+        
+        .badge-info {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+        
+        /* Score indicator */
+        .score-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .score-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s;
+        }
+        
+        .score-fill.critical { background: linear-gradient(90deg, #ef4444, #dc2626); }
+        .score-fill.high { background: linear-gradient(90deg, #f97316, #ea580c); }
+        .score-fill.medium { background: linear-gradient(90deg, #eab308, #ca8a04); }
+        .score-fill.low { background: linear-gradient(90deg, #22c55e, #16a34a); }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: #71717a;
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .footer a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        
+        /* Loading */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #71717a;
+        }
+        
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <span class="logo-icon">🛡️</span>
+            <div>
+                <h1>SafetyGraph Dashboard</h1>
+                <span>EDGY-AgenticX5 | Données en temps réel</span>
+            </div>
+        </div>
+        <div class="api-status">
+            <span class="status-dot loading" id="statusDot"></span>
+            <span id="statusText">Connexion...</span>
+            <span id="lastUpdate"></span>
+        </div>
+    </header>
+
+    <main class="main">
+        <!-- API Config -->
+        <div class="api-config">
+            <label>🔌 API URL:</label>
+            <input type="text" id="apiUrl" value="http://localhost:8000" placeholder="http://localhost:8000">
+            <button class="btn btn-primary" onclick="refreshData()">🔄 Actualiser</button>
+            <button class="btn btn-secondary" onclick="toggleAutoRefresh()">
+                <span id="autoRefreshBtn">▶️ Auto-refresh</span>
+            </button>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid" id="kpiGrid">
+            <div class="loading"><div class="spinner"></div></div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title">📊 Risques par Catégorie</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title">🎯 Distribution des Scores</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="scoreChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tolerance Zero Table -->
+        <div class="table-section">
+            <div class="table-header">
+                <h3 class="table-title">🚨 Risques Tolérance Zéro (Score ≥ 15)</h3>
+                <span class="badge badge-danger" id="tzCount">0 risques</span>
+            </div>
+            <div id="tzTableContainer">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+        <!-- Risk Categories Table -->
+        <div class="table-section">
+            <div class="table-header">
+                <h3 class="table-title">📈 Analyse par Catégorie</h3>
+            </div>
+            <div id="categoriesTableContainer">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        🛡️ SafetyGraph | EDGY-AgenticX5 | <a href="https://preventera.com">Preventera</a> | GenAISafety<br>
+        Données conformes à la Loi 25 du Québec
+    </footer>
+
+    <script>
+        // Configuration
+        let API_URL = 'http://localhost:8000';
+        let autoRefreshInterval = null;
+        let categoryChart = null;
+        let scoreChart = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            API_URL = document.getElementById('apiUrl').value;
+            refreshData();
+        });
+
+        // Update API URL
+        document.getElementById('apiUrl').addEventListener('change', (e) => {
+            API_URL = e.target.value;
+            refreshData();
+        });
+
+        // Toggle auto-refresh
+        function toggleAutoRefresh() {
+            const btn = document.getElementById('autoRefreshBtn');
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+                btn.textContent = '▶️ Auto-refresh';
+            } else {
+                autoRefreshInterval = setInterval(refreshData, 30000); // 30 seconds
+                btn.textContent = '⏸️ Pause';
+            }
+        }
+
+        // Main refresh function
+        async function refreshData() {
+            updateStatus('loading', 'Chargement...');
+            
+            try {
+                // Fetch all data in parallel
+                const [stats, categories, tzRisks, kpis] = await Promise.all([
+                    fetchAPI('/api/v1/stats'),
+                    fetchAPI('/api/v1/risks/categories'),
+                    fetchAPI('/api/v1/risks/tolerance-zero'),
+                    fetchAPI('/api/v1/stats/kpis')
+                ]);
+
+                // Update UI
+                updateKPIs(stats, kpis);
+                updateCategoryChart(categories);
+                updateScoreChart(categories);
+                updateTZTable(tzRisks);
+                updateCategoriesTable(categories);
+
+                updateStatus('connected', `Connecté | ${stats.organizations} orgs | ${stats.risks} risques`);
+                document.getElementById('lastUpdate').textContent = ` | ${new Date().toLocaleTimeString()}`;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                updateStatus('disconnected', 'API non disponible');
+                showEmptyState();
+            }
+        }
+
+        // Fetch from API
+        async function fetchAPI(endpoint) {
+            const response = await fetch(`${API_URL}${endpoint}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        }
+
+        // Update connection status
+        function updateStatus(status, text) {
+            const dot = document.getElementById('statusDot');
+            const textEl = document.getElementById('statusText');
+            
+            dot.className = `status-dot ${status}`;
+            textEl.textContent = text;
+        }
+
+        // Update KPI cards
+        function updateKPIs(stats, kpis) {
+            const grid = document.getElementById('kpiGrid');
+            
+            const kpiData = [
+                { icon: '🏢', value: stats.organizations, label: 'Organisations', class: '' },
+                { icon: '👥', value: stats.persons, label: 'Travailleurs', class: '' },
+                { icon: '⚠️', value: stats.risks, label: 'Risques identifiés', class: 'warning' },
+                { icon: '🚨', value: kpis?.risques_tolerance_zero || 0, label: 'Tolérance Zéro', class: 'danger' },
+                { icon: '📍', value: stats.zones, label: 'Zones de travail', class: '' },
+                { icon: '👤', value: stats.roles, label: 'Rôles SST', class: '' }
+            ];
+
+            grid.innerHTML = kpiData.map(kpi => `
+                <div class="kpi-card ${kpi.class}">
+                    <div class="kpi-icon">${kpi.icon}</div>
+                    <div class="kpi-value">${formatNumber(kpi.value)}</div>
+                    <div class="kpi-label">${kpi.label}</div>
+                </div>
+            `).join('');
+        }
+
+        // Update category chart
+        function updateCategoryChart(categories) {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            
+            if (categoryChart) categoryChart.destroy();
+
+            const data = Array.isArray(categories) ? categories : [];
+            
+            categoryChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(c => capitalizeFirst(c.categorie || 'Autre')),
+                    datasets: [{
+                        data: data.map(c => c.count),
+                        backgroundColor: [
+                            '#ef4444', '#f97316', '#eab308', '#22c55e', 
+                            '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4',
+                            '#84cc16', '#f43f5e'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: '#a1a1aa' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update score distribution chart
+        function updateScoreChart(categories) {
+            const ctx = document.getElementById('scoreChart').getContext('2d');
+            
+            if (scoreChart) scoreChart.destroy();
+
+            const data = Array.isArray(categories) ? categories : [];
+
+            scoreChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(c => capitalizeFirst(c.categorie || 'Autre')),
+                    datasets: [
+                        {
+                            label: 'Score moyen',
+                            data: data.map(c => c.score_moyen || 0),
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Nb Tolérance Zéro',
+                            data: data.map(c => c.nb_tz || 0),
+                            backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#a1a1aa' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#71717a' },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        },
+                        y: {
+                            ticks: { color: '#71717a' },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update TZ table
+        function updateTZTable(tzData) {
+            const container = document.getElementById('tzTableContainer');
+            const countBadge = document.getElementById('tzCount');
+            
+            // Handle both formats: array or object with tolerance_zero property
+            let risks = [];
+            if (Array.isArray(tzData)) {
+                risks = tzData;
+            } else if (tzData && tzData.tolerance_zero) {
+                risks = tzData.tolerance_zero;
+            }
+            
+            countBadge.textContent = `${risks.length} risques`;
+
+            if (risks.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">✅</div>
+                        <p>Aucun risque Tolérance Zéro détecté</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Catégorie</th>
+                            <th>Nombre</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${risks.map(r => `
+                            <tr>
+                                <td>
+                                    <span class="badge badge-danger">${capitalizeFirst(r.categorie || 'N/A')}</span>
+                                </td>
+                                <td><strong>${r.nb_risques || r.count || 0}</strong></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Update categories table
+        function updateCategoriesTable(categories) {
+            const container = document.getElementById('categoriesTableContainer');
+            
+            const data = Array.isArray(categories) ? categories : [];
+
+            if (data.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📊</div>
+                        <p>Aucune donnée de catégorie disponible</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Catégorie</th>
+                            <th>Nombre</th>
+                            <th>Score Moyen</th>
+                            <th>Tolérance Zéro</th>
+                            <th>Niveau</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(c => {
+                            const score = c.score_moyen || 0;
+                            const level = getScoreLevel(score);
+                            return `
+                                <tr>
+                                    <td><strong>${capitalizeFirst(c.categorie || 'Autre')}</strong></td>
+                                    <td>${c.count || 0}</td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                            <span>${score.toFixed(1)}</span>
+                                            <div class="score-bar" style="width: 80px;">
+                                                <div class="score-fill ${level}" style="width: ${(score/25)*100}%;"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><span class="badge badge-danger">${c.nb_tz || 0}</span></td>
+                                    <td><span class="badge badge-${level === 'critical' ? 'danger' : level === 'high' ? 'warning' : 'success'}">${capitalizeFirst(level)}</span></td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Show empty state
+        function showEmptyState() {
+            document.getElementById('kpiGrid').innerHTML = `
+                <div class="empty-state" style="grid-column: 1/-1;">
+                    <div class="icon">🔌</div>
+                    <h3>API non connectée</h3>
+                    <p>Vérifiez que l'API SafetyGraph est lancée sur ${API_URL}</p>
+                    <button class="btn btn-primary" onclick="refreshData()" style="margin-top: 1rem;">🔄 Réessayer</button>
+                </div>
+            `;
+        }
+
+        // Helpers
+        function formatNumber(num) {
+            if (num >= 1000000) return (num/1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num/1000).toFixed(1) + 'K';
+            return num?.toString() || '0';
+        }
+
+        function capitalizeFirst(str) {
+            if (!str) return '';
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        function getScoreLevel(score) {
+            if (score >= 15) return 'critical';
+            if (score >= 10) return 'high';
+            if (score >= 5) return 'medium';
+            return 'low';
+        }
+    </script>
+</body>
+</html>
