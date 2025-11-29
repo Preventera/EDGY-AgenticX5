@@ -1,51 +1,45 @@
 #!/usr/bin/env python3
 """
-🛡️ SafetyGraph API - FastAPI pour requêtes Cypher
+🛡️ SafetyGraph API - Version Cloud
 EDGY-AgenticX5 | Preventera | GenAISafety
 
-API REST pour exécuter des requêtes Cypher sur le graphe SafetyGraph Neo4j.
-Fournit 50+ endpoints organisés en 15 catégories d'analyses prédictives SST.
+API REST pour SafetyGraph avec Neo4j Aura (Cloud)
+Déploiement: Railway
 
-Endpoints principaux:
+Endpoints:
+- /health - Health check
 - /api/v1/stats - Statistiques globales
-- /api/v1/sectors - Analyses par secteur SCIAN
-- /api/v1/risks - Gestion des risques
-- /api/v1/zones - Cartographie des zones
-- /api/v1/persons - Exposition des personnes
-- /api/v1/alerts - Alertes et surveillance
-- /api/v1/compliance - Conformité et audit
-- /api/v1/predictive - Analyses prédictives ML
-- /api/v1/agents - Requêtes pour agents IA
-
-Démarrage:
-    uvicorn safetygraph_api:app --host 0.0.0.0 --port 8002 --reload
-
-Documentation:
-    http://localhost:8002/docs (Swagger UI)
-    http://localhost:8002/redoc (ReDoc)
+- /api/v1/sectors - Secteurs SCIAN
+- /api/v1/risks - Risques
+- /api/v1/zones - Zones
+- /api/v1/alerts - Alertes
+- /api/v1/cartography/* - Injection cartographie
 """
 
 import os
+import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Query, Path
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from neo4j import GraphDatabase
+from neo4j import GraphDatabase, Driver
+from neo4j.exceptions import ServiceUnavailable, AuthError
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
 
-NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
-API_VERSION = "1.0.0"
-API_TITLE = "🛡️ SafetyGraph API"
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("SafetyGraph.API")
 
+# Variables d'environnement
+NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+NEO4J_USERNAME = os.getenv("NEO4J_USERNAME", "neo4j")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
 
 # ============================================================================
 # CONNEXION NEO4J
@@ -54,1110 +48,757 @@ API_TITLE = "🛡️ SafetyGraph API"
 class Neo4jConnection:
     """Gestionnaire de connexion Neo4j"""
     
-    def __init__(self, uri: str, user: str, password: str):
-        self.driver = None
-        self.uri = uri
-        self.user = user
-        self.password = password
-        
-    def connect(self):
+    def __init__(self):
+        self.driver: Optional[Driver] = None
+        self.connected = False
+    
+    def connect(self) -> bool:
         """Établir la connexion"""
         try:
             self.driver = GraphDatabase.driver(
-                self.uri, 
-                auth=(self.user, self.password)
+                NEO4J_URI,
+                auth=(NEO4J_USERNAME, NEO4J_PASSWORD)
             )
-            # Test de connexion
+            # Test connexion
             with self.driver.session() as session:
                 session.run("RETURN 1")
+            self.connected = True
+            logger.info(f"✅ Connecté à Neo4j: {NEO4J_URI}")
             return True
+        except AuthError as e:
+            logger.error(f"❌ Erreur authentification Neo4j: {e}")
+            self.connected = False
+            return False
+        except ServiceUnavailable as e:
+            logger.error(f"❌ Neo4j non disponible: {e}")
+            self.connected = False
+            return False
         except Exception as e:
-            print(f"❌ Erreur connexion Neo4j: {e}")
+            logger.error(f"❌ Erreur connexion Neo4j: {e}")
+            self.connected = False
             return False
     
     def close(self):
         """Fermer la connexion"""
         if self.driver:
             self.driver.close()
+            self.connected = False
     
-    def execute_query(self, query: str, params: dict = None) -> List[dict]:
-        """Exécuter une requête Cypher"""
-        if not self.driver:
-            raise Exception("Non connecté à Neo4j")
-        
-        with self.driver.session() as session:
-            result = session.run(query, params or {})
-            return [dict(record) for record in result]
+    def execute_query(self, query: str, params: dict = None) -> List[Dict]:
+        """Exécuter une requête et retourner les résultats"""
+        if not self.connected:
+            return []
+        try:
+            with self.driver.session() as session:
+                result = session.run(query, params or {})
+                return [dict(record) for record in result]
+        except Exception as e:
+            logger.error(f"Erreur requête: {e}")
+            return []
     
-    def execute_single(self, query: str, params: dict = None) -> Optional[dict]:
-        """Exécuter une requête et retourner un seul résultat"""
-        results = self.execute_query(query, params)
-        return results[0] if results else None
+    def execute_write(self, query: str, params: dict = None) -> bool:
+        """Exécuter une requête d'écriture"""
+        if not self.connected:
+            return False
+        try:
+            with self.driver.session() as session:
+                session.run(query, params or {})
+                return True
+        except Exception as e:
+            logger.error(f"Erreur écriture: {e}")
+            return False
 
 
 # Instance globale
-neo4j_conn = Neo4jConnection(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)
-
+db = Neo4jConnection()
 
 # ============================================================================
 # MODÈLES PYDANTIC
 # ============================================================================
 
-class StatsGlobales(BaseModel):
-    """Statistiques globales du graphe"""
-    organizations: int = Field(..., description="Nombre d'organisations")
-    persons: int = Field(..., description="Nombre de personnes")
-    risks: int = Field(..., description="Nombre de risques")
-    zones: int = Field(..., description="Nombre de zones")
-    teams: int = Field(..., description="Nombre d'équipes")
-    roles: int = Field(..., description="Nombre de rôles")
+class HealthResponse(BaseModel):
+    status: str
+    neo4j: str
+    timestamp: str
+    version: str = "2.0.0"
 
+class StatsResponse(BaseModel):
+    organizations: int = 0
+    persons: int = 0
+    risks: int = 0
+    zones: int = 0
+    teams: int = 0
+    roles: int = 0
 
 class SectorStats(BaseModel):
-    """Statistiques par secteur SCIAN"""
     scian: str
     nom: str
     nb_organizations: int
     total_employes: int
-    nb_risques: Optional[int] = 0
-    score_moyen: Optional[float] = 0.0
-
+    nb_risques: int
+    score_moyen: float
 
 class RiskItem(BaseModel):
-    """Élément de risque"""
+    id: str = ""
     description: str
     categorie: str
     probabilite: int
     gravite: int
     score: int
-
+    zone: str = ""
 
 class ZoneItem(BaseModel):
-    """Élément de zone"""
+    id: str = ""
     name: str
     risk_level: str
-    nb_risques: int
-    categories: List[str] = []
-
+    nb_risques: int = 0
 
 class AlertItem(BaseModel):
-    """Alerte générée"""
     type: str
     niveau: str
-    organisation: Optional[str] = None
-    zone: Optional[str] = None
-    details: str
-    score: Optional[float] = None
+    organisation: str = ""
+    zone: str = ""
+    details: str = ""
+    score: int = 0
 
+# Modèles pour cartographie
+class OrganizationCreate(BaseModel):
+    name: str
+    sector_scian: str
+    nb_employes: int = 0
+    region_ssq: str = ""
+    code_cnesst: str = ""
 
-class PredictiveFeatures(BaseModel):
-    """Features pour modèles ML"""
-    organisation: str
-    secteur: str
-    employes: int
-    nb_zones: int
-    nb_risques: int
-    score_moyen: float
-    risques_par_zone: float
+class ZoneCreate(BaseModel):
+    name: str
+    risk_level: str = "moyen"
+    dangers_identifies: List[str] = []
+    epi_requis: List[str] = []
+    organization_id: str = ""
 
+class PersonCreate(BaseModel):
+    matricule: str
+    department: str = ""
+    age_groupe: str = ""
+    anciennete_annees: int = 0
+    certifications_sst: List[str] = []
 
-class CypherRequest(BaseModel):
-    """Requête Cypher personnalisée"""
-    query: str = Field(..., description="Requête Cypher à exécuter")
-    params: Optional[Dict[str, Any]] = Field(default={}, description="Paramètres")
+class RiskCreate(BaseModel):
+    description: str
+    categorie: str
+    probabilite: int = 1
+    gravite: int = 1
+    zone_id: str = ""
 
-
-class CypherResponse(BaseModel):
-    """Réponse à une requête Cypher"""
-    success: bool
-    data: List[Dict[str, Any]]
-    count: int
-    execution_time_ms: float
-
-
-# ============================================================================
-# LIFECYCLE
-# ============================================================================
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Gestion du cycle de vie de l'application"""
-    # Startup
-    print("🚀 Démarrage SafetyGraph API...")
-    connected = neo4j_conn.connect()
-    if connected:
-        print("✅ Connecté à Neo4j")
-    else:
-        print("⚠️ Neo4j non disponible - Mode dégradé")
-    
-    yield
-    
-    # Shutdown
-    print("👋 Arrêt SafetyGraph API...")
-    neo4j_conn.close()
-
+class CartographyImport(BaseModel):
+    organizations: List[Dict] = []
+    zones: List[Dict] = []
+    teams: List[Dict] = []
+    roles: List[Dict] = []
+    persons: List[Dict] = []
+    risks: List[Dict] = []
+    processes: List[Dict] = []
 
 # ============================================================================
 # APPLICATION FASTAPI
 # ============================================================================
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifecycle: connexion au démarrage, déconnexion à l'arrêt"""
+    logger.info("🚀 Démarrage SafetyGraph API...")
+    db.connect()
+    yield
+    logger.info("🛑 Arrêt SafetyGraph API...")
+    db.close()
+
 app = FastAPI(
-    title=API_TITLE,
-    description="""
-# 🛡️ SafetyGraph API
-
-API REST pour requêtes Cypher sur le graphe de connaissances SafetyGraph.
-
-## Fonctionnalités
-
-- **📊 Statistiques** - KPIs globaux et par secteur
-- **⚠️ Risques** - Identification et priorisation
-- **📍 Zones** - Cartographie des dangers
-- **👥 Personnes** - Exposition et certifications
-- **🚨 Alertes** - Surveillance proactive
-- **✅ Conformité** - Audit ISO 45001
-- **🔮 Prédictif** - Features pour ML
-
-## État actuel du graphe
-
-- 460 Organisations (16 secteurs SCIAN)
-- 3,926 Personnes
-- 2,870 Risques
-- 1,429 Zones
-
-## Technologies
-
-- Neo4j 5.x / Cypher
-- FastAPI / Python
-- Pydantic validation
-    """,
-    version=API_VERSION,
-    lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc"
+    title="🛡️ SafetyGraph API",
+    description="API REST pour SafetyGraph - Plateforme d'analyse prédictive SST",
+    version="2.0.0",
+    lifespan=lifespan
 )
 
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS if CORS_ORIGINS != ["*"] else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
 # ============================================================================
-# ENDPOINTS: SANTÉ ET STATUT
+# ENDPOINTS - SANTÉ
 # ============================================================================
 
-@app.get("/", tags=["Santé"])
+@app.get("/", tags=["🏠 Accueil"])
 async def root():
     """Page d'accueil de l'API"""
     return {
-        "api": "SafetyGraph API",
-        "version": API_VERSION,
-        "status": "running",
+        "name": "🛡️ SafetyGraph API",
+        "version": "2.0.0",
+        "description": "API REST pour SafetyGraph - EDGY-AgenticX5",
         "docs": "/docs",
         "health": "/health"
     }
 
-
-@app.get("/health", tags=["Santé"])
+@app.get("/health", response_model=HealthResponse, tags=["🏠 Accueil"])
 async def health_check():
-    """Vérification de la santé de l'API"""
-    neo4j_ok = False
-    stats = {}
-    
-    try:
-        result = neo4j_conn.execute_single("""
-            MATCH (o:Organization) WITH count(o) as orgs
-            MATCH (r:RisqueDanger) 
-            RETURN orgs, count(r) as risks
-        """)
-        if result:
-            neo4j_ok = True
-            stats = {"organizations": result["orgs"], "risks": result["risks"]}
-    except:
-        pass
-    
-    return {
-        "status": "healthy" if neo4j_ok else "degraded",
-        "neo4j": "connected" if neo4j_ok else "disconnected",
-        "timestamp": datetime.now().isoformat(),
-        "stats": stats
-    }
-
-
-# ============================================================================
-# ENDPOINTS: STATISTIQUES GLOBALES (Section 1)
-# ============================================================================
-
-@app.get("/api/v1/stats", response_model=StatsGlobales, tags=["Statistiques"])
-async def get_stats_globales():
-    """
-    📊 Statistiques globales du graphe SafetyGraph
-    
-    Retourne le comptage de tous les types de nœuds principaux.
-    """
-    query = """
-    MATCH (o:Organization) WITH count(o) as orgs
-    MATCH (p:Person) WITH orgs, count(p) as persons
-    MATCH (r:RisqueDanger) WITH orgs, persons, count(r) as risks
-    MATCH (z:Zone) WITH orgs, persons, risks, count(z) as zones
-    MATCH (t:Team) WITH orgs, persons, risks, zones, count(t) as teams
-    MATCH (ro:Role) 
-    RETURN orgs, persons, risks, zones, teams, count(ro) as roles
-    """
-    
-    try:
-        result = neo4j_conn.execute_single(query)
-        if result:
-            return StatsGlobales(
-                organizations=result["orgs"],
-                persons=result["persons"],
-                risks=result["risks"],
-                zones=result["zones"],
-                teams=result["teams"],
-                roles=result["roles"]
-            )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    
-    # Valeurs par défaut si pas de connexion
-    return StatsGlobales(
-        organizations=460,
-        persons=3926,
-        risks=2870,
-        zones=1429,
-        teams=1125,
-        roles=2363
+    """Vérification de santé de l'API"""
+    return HealthResponse(
+        status="healthy" if db.connected else "degraded",
+        neo4j="connected" if db.connected else "disconnected",
+        timestamp=datetime.now().isoformat()
     )
 
+# ============================================================================
+# ENDPOINTS - STATISTIQUES
+# ============================================================================
 
-@app.get("/api/v1/stats/kpis", tags=["Statistiques"])
-async def get_kpis():
-    """
-    📈 KPIs calculés pour dashboard
-    """
+@app.get("/api/v1/stats", response_model=StatsResponse, tags=["📊 Statistiques"])
+async def get_stats():
+    """Statistiques globales du graphe"""
+    if not db.connected:
+        return StatsResponse()
+    
     query = """
-    MATCH (r:RisqueDanger) 
-    WHERE r.probabilite IS NOT NULL AND r.gravite IS NOT NULL
-    WITH count(r) AS total_risques,
-         sum(CASE WHEN r.probabilite * r.gravite >= 15 THEN 1 ELSE 0 END) AS risques_tz,
-         avg(r.probabilite * r.gravite) AS score_moyen
-    RETURN total_risques, risques_tz, round(score_moyen * 100) / 100 AS score_moyen
+    MATCH (o:Organization) WITH count(o) AS orgs
+    MATCH (p:Person) WITH orgs, count(p) AS persons
+    MATCH (r:RisqueDanger) WITH orgs, persons, count(r) AS risks
+    MATCH (z:Zone) WITH orgs, persons, risks, count(z) AS zones
+    MATCH (t:Team) WITH orgs, persons, risks, zones, count(t) AS teams
+    MATCH (ro:Role) 
+    RETURN orgs, persons, risks, zones, teams, count(ro) AS roles
     """
     
-    try:
-        result = neo4j_conn.execute_single(query)
-        if result:
-            return {
-                "total_risques": result["total_risques"],
-                "risques_tolerance_zero": result["risques_tz"],
-                "score_risque_moyen": result["score_moyen"],
-                "taux_tz": round(result["risques_tz"] * 100 / max(result["total_risques"], 1), 1)
-            }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    result = db.execute_query(query)
+    if result:
+        r = result[0]
+        return StatsResponse(
+            organizations=r.get("orgs", 0),
+            persons=r.get("persons", 0),
+            risks=r.get("risks", 0),
+            zones=r.get("zones", 0),
+            teams=r.get("teams", 0),
+            roles=r.get("roles", 0)
+        )
+    return StatsResponse()
 
+@app.get("/api/v1/stats/kpis", tags=["📊 Statistiques"])
+async def get_kpis():
+    """KPIs calculés"""
+    if not db.connected:
+        return {"error": "Neo4j non connecté"}
+    
+    query = """
+    MATCH (r:RisqueDanger)
+    WITH count(r) AS total,
+         sum(CASE WHEN r.probabilite * r.gravite >= 15 THEN 1 ELSE 0 END) AS tz,
+         avg(r.probabilite * r.gravite) AS score_moy
+    RETURN total AS total_risques,
+           tz AS risques_tolerance_zero,
+           round(score_moy * 100) / 100 AS score_moyen,
+           round(tz * 100.0 / total) AS taux_tz
+    """
+    
+    result = db.execute_query(query)
+    return result[0] if result else {}
 
 # ============================================================================
-# ENDPOINTS: SECTEURS SCIAN (Section 2)
+# ENDPOINTS - SECTEURS
 # ============================================================================
 
-@app.get("/api/v1/sectors", tags=["Secteurs SCIAN"])
+@app.get("/api/v1/sectors", tags=["🏭 Secteurs"])
 async def get_sectors():
-    """
-    🏭 Liste des secteurs SCIAN avec statistiques
-    """
+    """Liste des secteurs SCIAN"""
+    if not db.connected:
+        return []
+    
     query = """
     MATCH (o:Organization)
-    WHERE o.sector_scian IS NOT NULL
-    RETURN o.sector_scian AS scian, 
-           count(o) AS nb_orgs,
-           sum(o.nb_employes) AS total_employes
+    WITH o.sector_scian AS scian, count(o) AS nb_orgs, sum(o.nb_employes) AS employes
+    RETURN scian, nb_orgs, employes
     ORDER BY nb_orgs DESC
     """
     
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"sectors": results, "count": len(results)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return db.execute_query(query)
 
-
-@app.get("/api/v1/sectors/{scian}", tags=["Secteurs SCIAN"])
-async def get_sector_detail(scian: str = Path(..., description="Code SCIAN")):
-    """
-    🏭 Détail d'un secteur SCIAN spécifique
-    """
+@app.get("/api/v1/sectors/{scian}", tags=["🏭 Secteurs"])
+async def get_sector_detail(scian: str):
+    """Détail d'un secteur SCIAN"""
+    if not db.connected:
+        raise HTTPException(status_code=503, detail="Neo4j non connecté")
+    
     query = """
     MATCH (o:Organization)
-    WHERE o.sector_scian = $scian
+    WHERE o.sector_scian CONTAINS $scian
     OPTIONAL MATCH (o)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
-    WITH o, count(DISTINCT z) AS zones, count(r) AS risques, 
-         avg(r.probabilite * r.gravite) AS score
-    RETURN o.name AS organisation, o.nb_employes AS employes, 
-           zones, risques, round(score * 100) / 100 AS score_moyen
-    ORDER BY employes DESC
+    WITH o, count(DISTINCT z) AS zones, count(r) AS risques, avg(r.probabilite * r.gravite) AS score
+    RETURN o.name AS organisation, o.nb_employes AS employes, zones, risques, 
+           round(score * 100) / 100 AS score_moyen
+    ORDER BY score_moyen DESC
     """
     
-    try:
-        results = neo4j_conn.execute_query(query, {"scian": scian})
-        return {
-            "scian": scian,
-            "organizations": results,
-            "count": len(results)
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return db.execute_query(query, {"scian": scian})
 
-
-@app.get("/api/v1/sectors/priority/cnesst", tags=["Secteurs SCIAN"])
-async def get_cnesst_priority_sectors():
-    """
-    🎯 Les 5 secteurs prioritaires CNESST
-    """
-    query = """
-    MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
-    WHERE o.sector_scian IN ['621-624', '31-33', '44-45', '236-238', '72']
-    RETURN o.sector_scian AS secteur,
-           CASE o.sector_scian
-               WHEN '621-624' THEN '🏥 Santé'
-               WHEN '31-33' THEN '🏭 Fabrication'
-               WHEN '44-45' THEN '🛒 Commerce'
-               WHEN '236-238' THEN '🏗️ Construction'
-               WHEN '72' THEN '🍽️ Resto/Hôtel'
-           END AS nom_secteur,
-           count(DISTINCT o) AS orgs,
-           count(r) AS risques,
-           round(avg(r.probabilite * r.gravite) * 100) / 100 AS score_moyen
-    ORDER BY risques DESC
-    """
-    
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"priority_sectors": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+@app.get("/api/v1/sectors/priority/cnesst", tags=["🏭 Secteurs"])
+async def get_priority_sectors():
+    """5 secteurs prioritaires CNESST"""
+    return [
+        {"scian": "62", "nom": "Santé et services sociaux", "priorite": 1},
+        {"scian": "31-33", "nom": "Fabrication", "priorite": 2},
+        {"scian": "44-45", "nom": "Commerce de détail", "priorite": 3},
+        {"scian": "23", "nom": "Construction", "priorite": 4},
+        {"scian": "72", "nom": "Hébergement et restauration", "priorite": 5}
+    ]
 
 # ============================================================================
-# ENDPOINTS: RISQUES (Section 3)
+# ENDPOINTS - RISQUES
 # ============================================================================
 
-@app.get("/api/v1/risks", tags=["Risques"])
+@app.get("/api/v1/risks", tags=["⚠️ Risques"])
 async def get_risks(
-    limit: int = Query(30, ge=1, le=100, description="Nombre max de résultats"),
-    min_score: int = Query(0, ge=0, le=25, description="Score minimum P×G")
+    limit: int = Query(30, ge=1, le=100),
+    min_score: int = Query(0, ge=0, le=25),
+    categorie: Optional[str] = None
 ):
-    """
-    ⚠️ Liste des risques triés par score
-    """
+    """Liste des risques triés par score"""
+    if not db.connected:
+        return []
+    
     query = """
     MATCH (r:RisqueDanger)
-    WHERE r.probabilite IS NOT NULL AND r.gravite IS NOT NULL
-      AND r.probabilite * r.gravite >= $min_score
-    RETURN r.description AS description,
-           r.categorie AS categorie,
-           r.probabilite AS probabilite,
-           r.gravite AS gravite,
-           r.probabilite * r.gravite AS score
+    WHERE r.probabilite * r.gravite >= $min_score
+    """ + (f"AND r.categorie = $categorie" if categorie else "") + """
+    OPTIONAL MATCH (r)-[:LOCALISE_DANS]->(z:Zone)
+    RETURN r.id AS id, r.description AS description, r.categorie AS categorie,
+           r.probabilite AS probabilite, r.gravite AS gravite,
+           r.probabilite * r.gravite AS score, z.name AS zone
     ORDER BY score DESC
     LIMIT $limit
     """
     
-    try:
-        results = neo4j_conn.execute_query(query, {"limit": limit, "min_score": min_score})
-        return {"risks": results, "count": len(results)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    params = {"min_score": min_score, "limit": limit}
+    if categorie:
+        params["categorie"] = categorie
+    
+    return db.execute_query(query, params)
 
-
-@app.get("/api/v1/risks/tolerance-zero", tags=["Risques"])
+@app.get("/api/v1/risks/tolerance-zero", tags=["⚠️ Risques"])
 async def get_tolerance_zero_risks():
-    """
-    🔴 Risques Tolérance Zéro (score ≥ 15)
-    """
+    """Risques Tolérance Zéro (score >= 15)"""
+    if not db.connected:
+        return []
+    
     query = """
     MATCH (r:RisqueDanger)
     WHERE r.probabilite * r.gravite >= 15
-    RETURN r.categorie AS categorie,
-           count(r) AS nb_risques,
-           collect(r.description)[0..5] AS exemples
-    ORDER BY nb_risques DESC
+    OPTIONAL MATCH (r)-[:LOCALISE_DANS]->(z:Zone)
+    OPTIONAL MATCH (z)-[:APPARTIENT_A]->(o:Organization)
+    RETURN r.description AS description, r.categorie AS categorie,
+           r.probabilite * r.gravite AS score,
+           z.name AS zone, o.name AS organisation
+    ORDER BY score DESC
     """
     
-    try:
-        results = neo4j_conn.execute_query(query)
-        total = sum(r["nb_risques"] for r in results)
-        return {"tolerance_zero": results, "total": total}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return db.execute_query(query)
 
-
-@app.get("/api/v1/risks/categories", tags=["Risques"])
+@app.get("/api/v1/risks/categories", tags=["⚠️ Risques"])
 async def get_risk_categories():
-    """
-    📊 Risques groupés par catégorie
-    """
+    """Risques groupés par catégorie"""
+    if not db.connected:
+        return []
+    
     query = """
     MATCH (r:RisqueDanger)
-    WHERE r.categorie IS NOT NULL
     RETURN r.categorie AS categorie,
-           count(r) AS nb_risques,
-           round(avg(r.probabilite * r.gravite) * 100) / 100 AS score_moyen
-    ORDER BY nb_risques DESC
+           count(r) AS count,
+           round(avg(r.probabilite * r.gravite) * 100) / 100 AS score_moyen,
+           sum(CASE WHEN r.probabilite * r.gravite >= 15 THEN 1 ELSE 0 END) AS nb_tz
+    ORDER BY count DESC
     """
     
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"categories": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return db.execute_query(query)
 
-
-@app.get("/api/v1/risks/matrix", tags=["Risques"])
+@app.get("/api/v1/risks/matrix", tags=["⚠️ Risques"])
 async def get_risk_matrix():
-    """
-    📈 Données pour matrice de risques P×G
-    """
+    """Données pour matrice de risques P×G"""
+    if not db.connected:
+        return []
+    
     query = """
     MATCH (r:RisqueDanger)
-    WHERE r.probabilite IS NOT NULL AND r.gravite IS NOT NULL
-    RETURN r.probabilite AS p, r.gravite AS g, count(r) AS count
-    ORDER BY p, g
+    RETURN r.probabilite AS x, r.gravite AS y, count(r) AS count, 
+           collect(DISTINCT r.categorie) AS categories
+    ORDER BY x, y
     """
     
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"matrix": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+    return db.execute_query(query)
 
 # ============================================================================
-# ENDPOINTS: ZONES (Section 4)
+# ENDPOINTS - ZONES
 # ============================================================================
 
-@app.get("/api/v1/zones", tags=["Zones"])
-async def get_zones(
-    risk_level: Optional[str] = Query(None, description="Filtre par niveau: critique, eleve, moyen, faible")
-):
-    """
-    📍 Liste des zones avec statistiques de risques
-    """
+@app.get("/api/v1/zones", tags=["📍 Zones"])
+async def get_zones(risk_level: Optional[str] = None):
+    """Liste des zones"""
+    if not db.connected:
+        return []
+    
     query = """
     MATCH (z:Zone)
-    WHERE $risk_level IS NULL OR z.risk_level = $risk_level
+    """ + (f"WHERE z.risk_level = $risk_level" if risk_level else "") + """
     OPTIONAL MATCH (z)<-[:LOCALISE_DANS]-(r:RisqueDanger)
-    RETURN z.name AS name,
-           z.risk_level AS risk_level,
-           count(r) AS nb_risques,
-           collect(DISTINCT r.categorie)[0..3] AS categories
+    RETURN z.id AS id, z.name AS name, z.risk_level AS risk_level,
+           count(r) AS nb_risques
     ORDER BY nb_risques DESC
-    LIMIT 100
     """
     
-    try:
-        results = neo4j_conn.execute_query(query, {"risk_level": risk_level})
-        return {"zones": results, "count": len(results)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    params = {"risk_level": risk_level} if risk_level else {}
+    return db.execute_query(query, params)
 
-
-@app.get("/api/v1/zones/hotspots", tags=["Zones"])
+@app.get("/api/v1/zones/hotspots", tags=["📍 Zones"])
 async def get_zone_hotspots():
-    """
-    🔥 Zones hotspots (concentration élevée de risques)
-    """
+    """Zones avec concentration élevée de risques"""
+    if not db.connected:
+        return []
+    
     query = """
     MATCH (z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
     WITH z, count(r) AS nb_risques, avg(r.probabilite * r.gravite) AS score_moyen
-    WHERE nb_risques >= 5
-    RETURN z.name AS zone,
-           z.risk_level AS niveau,
-           nb_risques,
-           round(score_moyen * 100) / 100 AS score_moyen
+    WHERE nb_risques >= 3
+    OPTIONAL MATCH (z)-[:APPARTIENT_A]->(o:Organization)
+    RETURN z.name AS zone, o.name AS organisation, nb_risques,
+           round(score_moyen * 100) / 100 AS score_moyen,
+           CASE WHEN score_moyen >= 12 THEN 'CRITIQUE'
+                WHEN score_moyen >= 8 THEN 'ÉLEVÉ'
+                ELSE 'MODÉRÉ' END AS niveau
     ORDER BY score_moyen DESC
-    LIMIT 20
     """
     
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"hotspots": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/v1/zones/by-level", tags=["Zones"])
-async def get_zones_by_level():
-    """
-    📊 Distribution des zones par niveau de risque
-    """
-    query = """
-    MATCH (z:Zone)
-    WHERE z.risk_level IS NOT NULL
-    RETURN z.risk_level AS niveau, count(z) AS count
-    ORDER BY 
-        CASE z.risk_level 
-            WHEN 'critique' THEN 1 
-            WHEN 'eleve' THEN 2 
-            WHEN 'moyen' THEN 3 
-            ELSE 4 
-        END
-    """
-    
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"distribution": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+    return db.execute_query(query)
 
 # ============================================================================
-# ENDPOINTS: PERSONNES (Section 5)
+# ENDPOINTS - ALERTES
 # ============================================================================
 
-@app.get("/api/v1/persons/age-distribution", tags=["Personnes"])
-async def get_age_distribution():
-    """
-    👥 Distribution des personnes par groupe d'âge
-    """
-    query = """
-    MATCH (p:Person)
-    WHERE p.age_groupe IS NOT NULL
-    RETURN p.age_groupe AS groupe_age, count(p) AS count
-    ORDER BY p.age_groupe
-    """
-    
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"age_distribution": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/v1/persons/certifications", tags=["Personnes"])
-async def get_certifications():
-    """
-    🎓 Certifications SST les plus fréquentes
-    """
-    query = """
-    MATCH (p:Person)
-    WHERE p.certifications_sst IS NOT NULL
-    UNWIND p.certifications_sst AS cert
-    RETURN cert AS certification, count(p) AS count
-    ORDER BY count DESC
-    LIMIT 20
-    """
-    
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"certifications": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/v1/persons/exposed", tags=["Personnes"])
-async def get_exposed_persons(
-    min_risks: int = Query(3, ge=1, description="Nombre minimum de risques d'exposition")
-):
-    """
-    ⚠️ Personnes les plus exposées aux risques
-    """
-    query = """
-    MATCH (p:Person)-[:EXPOSE_A]->(r:RisqueDanger)
-    WITH p, count(r) AS nb_risques, avg(r.probabilite * r.gravite) AS score
-    WHERE nb_risques >= $min_risks
-    RETURN p.matricule AS matricule,
-           p.department AS departement,
-           nb_risques,
-           round(score * 100) / 100 AS score_exposition
-    ORDER BY nb_risques DESC
-    LIMIT 50
-    """
-    
-    try:
-        results = neo4j_conn.execute_query(query, {"min_risks": min_risks})
-        return {"exposed_persons": results, "count": len(results)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ============================================================================
-# ENDPOINTS: ALERTES (Section 8)
-# ============================================================================
-
-@app.get("/api/v1/alerts", tags=["Alertes"])
+@app.get("/api/v1/alerts", tags=["🚨 Alertes"])
 async def get_alerts():
-    """
-    🚨 Toutes les alertes actives
-    """
+    """Toutes les alertes actives"""
+    if not db.connected:
+        return []
+    
     alerts = []
     
-    # Alerte 1: Organisations avec concentration TZ
-    query1 = """
-    MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+    # Risques TZ
+    tz_query = """
+    MATCH (r:RisqueDanger)
     WHERE r.probabilite * r.gravite >= 15
-    WITH o, count(r) AS nb_TZ
-    WHERE nb_TZ >= 5
-    RETURN o.name AS organisation, o.sector_scian AS secteur, nb_TZ AS score
-    ORDER BY nb_TZ DESC
+    OPTIONAL MATCH (r)-[:LOCALISE_DANS]->(z:Zone)-[:APPARTIENT_A]->(o:Organization)
+    RETURN 'TOLERANCE_ZERO' AS type, 'CRITIQUE' AS niveau,
+           o.name AS organisation, z.name AS zone,
+           r.description AS details, r.probabilite * r.gravite AS score
+    ORDER BY score DESC
     LIMIT 10
     """
+    alerts.extend(db.execute_query(tz_query))
     
-    try:
-        results = neo4j_conn.execute_query(query1)
-        for r in results:
-            alerts.append({
-                "type": "CONCENTRATION_TZ",
-                "niveau": "CRITIQUE",
-                "organisation": r["organisation"],
-                "details": f"{r['score']} risques Tolérance Zéro",
-                "score": r["score"]
-            })
-    except:
-        pass
-    
-    # Alerte 2: Zones critiques multi-risques
-    query2 = """
+    # Hotspots
+    hotspot_query = """
     MATCH (z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
-    WHERE z.risk_level = 'critique'
-    WITH z, count(r) AS nb_risques
-    WHERE nb_risques >= 5
-    RETURN z.name AS zone, nb_risques AS score
-    ORDER BY nb_risques DESC
-    LIMIT 10
+    WITH z, count(r) AS nb, avg(r.probabilite * r.gravite) AS score
+    WHERE nb >= 5 OR score >= 12
+    OPTIONAL MATCH (z)-[:APPARTIENT_A]->(o:Organization)
+    RETURN 'HOTSPOT' AS type, 
+           CASE WHEN score >= 12 THEN 'CRITIQUE' ELSE 'ÉLEVÉ' END AS niveau,
+           o.name AS organisation, z.name AS zone,
+           nb + ' risques, score ' + toString(round(score * 10) / 10) AS details,
+           toInteger(score) AS score
+    ORDER BY score DESC
+    LIMIT 5
     """
+    alerts.extend(db.execute_query(hotspot_query))
     
-    try:
-        results = neo4j_conn.execute_query(query2)
-        for r in results:
-            alerts.append({
-                "type": "ZONE_CRITIQUE",
-                "niveau": "ÉLEVÉ",
-                "zone": r["zone"],
-                "details": f"{r['score']} risques concentrés",
-                "score": r["score"]
-            })
-    except:
-        pass
-    
-    return {
-        "alerts": alerts,
-        "count": len(alerts),
-        "timestamp": datetime.now().isoformat()
-    }
+    return alerts
 
-
-@app.get("/api/v1/alerts/young-workers", tags=["Alertes"])
+@app.get("/api/v1/alerts/young-workers", tags=["🚨 Alertes"])
 async def get_young_worker_alerts():
-    """
-    👤 Alertes jeunes travailleurs (18-24 ans) exposés
-    """
+    """Alertes jeunes travailleurs (18-24) exposés"""
+    if not db.connected:
+        return []
+    
     query = """
-    MATCH (p:Person)-[:EXPOSE_A]->(r:RisqueDanger)
-    WHERE p.age_groupe = '18-24' AND r.probabilite * r.gravite >= 12
-    RETURN p.matricule AS matricule,
-           p.department AS departement,
-           count(r) AS nb_risques,
-           collect(DISTINCT r.categorie)[0..3] AS categories
-    ORDER BY nb_risques DESC
-    LIMIT 20
+    MATCH (p:Person)-[:TRAVAILLE_DANS]->(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
+    WHERE p.age_groupe = '18-24' AND r.probabilite * r.gravite >= 10
+    WITH p, z, collect(DISTINCT r.categorie) AS risques, max(r.probabilite * r.gravite) AS score_max
+    RETURN p.matricule AS travailleur, z.name AS zone, risques, score_max
+    ORDER BY score_max DESC
     """
     
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"young_worker_alerts": results, "count": len(results)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+    return db.execute_query(query)
 
 # ============================================================================
-# ENDPOINTS: CONFORMITÉ (Section 9)
+# ENDPOINTS - AGENTS IA
 # ============================================================================
 
-@app.get("/api/v1/compliance/certification-coverage", tags=["Conformité"])
-async def get_certification_coverage():
-    """
-    ✅ Taux de certification par secteur
-    """
-    query = """
-    MATCH (o:Organization)<-[:APPARTIENT_A]-(t:Team)<-[:MEMBRE_DE]-(p:Person)
-    WHERE o.sector_scian IS NOT NULL
-    WITH o.sector_scian AS secteur,
-         count(DISTINCT p) AS total,
-         sum(CASE WHEN p.certifications_sst IS NOT NULL AND size(p.certifications_sst) > 0 THEN 1 ELSE 0 END) AS certifies
-    RETURN secteur,
-           total AS total_personnes,
-           certifies AS personnes_certifiees,
-           round(certifies * 100.0 / total * 10) / 10 AS taux_certification
-    ORDER BY taux_certification ASC
-    LIMIT 15
-    """
-    
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"certification_coverage": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/v1/compliance/missing-epi", tags=["Conformité"])
-async def get_missing_epi():
-    """
-    ❌ Zones à risque sans EPI définis
-    """
-    query = """
-    MATCH (z:Zone)
-    WHERE z.risk_level IN ['critique', 'eleve'] 
-      AND (z.epi_requis IS NULL OR size(z.epi_requis) = 0)
-    RETURN z.name AS zone, z.risk_level AS niveau
-    ORDER BY z.risk_level
-    """
-    
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"missing_epi": results, "count": len(results)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ============================================================================
-# ENDPOINTS: ANALYSES PRÉDICTIVES (Section 7 & 12)
-# ============================================================================
-
-@app.get("/api/v1/predictive/features", tags=["Prédictif"])
-async def get_ml_features():
-    """
-    🔮 Features pour modèles ML (XGBoost, LightGBM)
-    """
-    query = """
-    MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
-    OPTIONAL MATCH (o)<-[:APPARTIENT_A]-(t:Team)<-[:MEMBRE_DE]-(p:Person)
-    WITH o, 
-         count(DISTINCT z) AS nb_zones,
-         count(DISTINCT r) AS nb_risques,
-         count(DISTINCT t) AS nb_equipes,
-         count(DISTINCT p) AS nb_personnes,
-         avg(r.probabilite * r.gravite) AS score_risque_moyen
-    RETURN o.name AS organisation,
-           o.sector_scian AS secteur,
-           o.nb_employes AS employes,
-           nb_zones, nb_risques, nb_equipes, nb_personnes,
-           round(score_risque_moyen * 100) / 100 AS score_moyen,
-           round(nb_risques * 1.0 / CASE WHEN nb_zones > 0 THEN nb_zones ELSE 1 END * 100) / 100 AS risques_par_zone
-    ORDER BY score_moyen DESC
-    LIMIT 100
-    """
-    
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"features": results, "count": len(results)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/v1/predictive/risk-score-by-org", tags=["Prédictif"])
-async def get_risk_score_by_org():
-    """
-    📊 Score de risque pondéré par organisation
-    """
-    query = """
-    MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
-    WITH o, 
-         count(r) AS nb_risques,
-         sum(r.probabilite * r.gravite) AS score_total,
-         sum(CASE WHEN r.probabilite * r.gravite >= 15 THEN 1 ELSE 0 END) AS risques_TZ
-    RETURN o.name AS organisation,
-           o.sector_scian AS secteur,
-           nb_risques,
-           risques_TZ AS tolerance_zero,
-           round(score_total / nb_risques * 100) / 100 AS score_moyen,
-           round(score_total) AS score_total
-    ORDER BY score_total DESC
-    LIMIT 30
-    """
-    
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"risk_scores": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/v1/predictive/sector-correlation", tags=["Prédictif"])
-async def get_sector_risk_correlation():
-    """
-    🔗 Corrélation secteur-catégorie de risque
-    """
-    query = """
-    MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
-    WHERE o.sector_scian IS NOT NULL AND r.categorie IS NOT NULL
-    RETURN o.sector_scian AS secteur,
-           r.categorie AS categorie,
-           count(r) AS occurrences,
-           round(avg(r.probabilite * r.gravite) * 100) / 100 AS score_moyen
-    ORDER BY occurrences DESC
-    LIMIT 50
-    """
-    
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"correlations": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ============================================================================
-# ENDPOINTS: AGENTS IA (Section 12)
-# ============================================================================
-
-@app.get("/api/v1/agents/visionai/targets", tags=["Agents IA"])
+@app.get("/api/v1/agents/visionai/targets", tags=["🤖 Agents IA"])
 async def get_visionai_targets():
-    """
-    🎥 Zones cibles pour Agent VisionAI (surveillance caméra)
-    """
+    """Zones cibles pour VisionAI (surveillance caméra)"""
+    if not db.connected:
+        return []
+    
     query = """
     MATCH (z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
     WHERE z.risk_level = 'critique' AND r.categorie IN ['chute', 'mecanique', 'electrique']
-    RETURN DISTINCT z.name AS zone,
-           collect(DISTINCT r.categorie) AS types_risques,
-           'VisionAI' AS agent
-    ORDER BY size(types_risques) DESC
-    LIMIT 20
+    WITH z, collect(DISTINCT r.categorie) AS risques
+    RETURN z.name AS zone, risques, 'VisionAI' AS agent
     """
     
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"visionai_targets": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return db.execute_query(query)
 
-
-@app.get("/api/v1/agents/ergoai/targets", tags=["Agents IA"])
+@app.get("/api/v1/agents/ergoai/targets", tags=["🤖 Agents IA"])
 async def get_ergoai_targets():
-    """
-    🦴 Personnes cibles pour Agent ErgoAI (risques ergonomiques)
-    """
+    """Postes cibles pour ErgoAI (ergonomie)"""
+    if not db.connected:
+        return []
+    
     query = """
-    MATCH (p:Person)-[:EXPOSE_A]->(r:RisqueDanger)
+    MATCH (z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
     WHERE r.categorie = 'ergonomique'
-    RETURN p.matricule AS cible,
-           p.department AS departement,
-           count(r) AS nb_risques_ergo,
-           'ErgoAI' AS agent
-    ORDER BY nb_risques_ergo DESC
-    LIMIT 50
-    """
-    
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"ergoai_targets": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/v1/agents/alertai/triggers", tags=["Agents IA"])
-async def get_alertai_triggers():
-    """
-    🚨 Déclencheurs pour Agent AlertAI
-    """
-    query = """
-    MATCH (o:Organization)<-[:APPARTIENT_A]-(z:Zone)<-[:LOCALISE_DANS]-(r:RisqueDanger)
-    WITH o, z, count(r) AS nb_risques, avg(r.probabilite * r.gravite) AS score_moyen
-    WHERE score_moyen >= 12 OR nb_risques >= 6
-    RETURN o.name AS organisation,
-           z.name AS zone,
-           nb_risques,
-           round(score_moyen * 100) / 100 AS score,
-           CASE 
-               WHEN score_moyen >= 15 THEN 'CRITIQUE'
-               WHEN score_moyen >= 12 THEN 'ÉLEVÉ'
-               ELSE 'MODÉRÉ'
-           END AS niveau_alerte
+    OPTIONAL MATCH (p:Person)-[:TRAVAILLE_DANS]->(z)
+    WITH z, count(DISTINCT p) AS nb_exposes, avg(r.probabilite * r.gravite) AS score
+    WHERE nb_exposes >= 2
+    RETURN z.name AS poste, nb_exposes, round(score * 100) / 100 AS score_ergo
     ORDER BY score DESC
-    LIMIT 30
     """
     
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"alertai_triggers": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return db.execute_query(query)
 
+# ============================================================================
+# ENDPOINTS - CARTOGRAPHIE (INJECTION)
+# ============================================================================
 
-@app.get("/api/v1/agents/complyai/gaps", tags=["Agents IA"])
-async def get_complyai_gaps():
-    """
-    ✅ Écarts de conformité pour Agent ComplyAI
-    """
+@app.post("/api/v1/cartography/organization", tags=["🗺️ Cartographie"])
+async def create_organization(org: OrganizationCreate):
+    """Créer une organisation"""
+    if not db.connected:
+        raise HTTPException(status_code=503, detail="Neo4j non connecté")
+    
     query = """
-    MATCH (o:Organization)
-    OPTIONAL MATCH (o)<-[:APPARTIENT_A]-(z:Zone)
-    OPTIONAL MATCH (z)<-[:LOCALISE_DANS]-(r:RisqueDanger)
-    WITH o, count(DISTINCT z) AS zones, count(r) AS risques
-    WHERE zones > 0 AND risques = 0
-    RETURN o.name AS organisation,
-           zones AS zones_sans_risques,
-           'Audit requis' AS action
-    LIMIT 20
+    CREATE (o:Organization:EDGYEntity {
+        id: 'ORG-' + toString(timestamp()),
+        name: $name,
+        sector_scian: $sector_scian,
+        nb_employes: $nb_employes,
+        region_ssq: $region_ssq,
+        code_cnesst: $code_cnesst,
+        created_at: datetime()
+    })
+    RETURN o.id AS id, o.name AS name
     """
     
-    try:
-        results = neo4j_conn.execute_query(query)
-        return {"compliance_gaps": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    result = db.execute_query(query, org.dict())
+    if result:
+        return {"success": True, "data": result[0]}
+    raise HTTPException(status_code=500, detail="Erreur création organisation")
 
-
-# ============================================================================
-# ENDPOINTS: RECHERCHE ET REQUÊTES PERSONNALISÉES
-# ============================================================================
-
-@app.get("/api/v1/search/organizations", tags=["Recherche"])
-async def search_organizations(
-    q: str = Query(..., min_length=2, description="Terme de recherche")
-):
-    """
-    🔍 Recherche d'organisations par nom
-    """
+@app.post("/api/v1/cartography/zone", tags=["🗺️ Cartographie"])
+async def create_zone(zone: ZoneCreate):
+    """Créer une zone"""
+    if not db.connected:
+        raise HTTPException(status_code=503, detail="Neo4j non connecté")
+    
     query = """
-    MATCH (o:Organization)
-    WHERE toLower(o.name) CONTAINS toLower($terme)
-    RETURN o.name AS organisation, o.sector_scian AS secteur, o.nb_employes AS employes
-    ORDER BY o.nb_employes DESC
-    LIMIT 20
+    CREATE (z:Zone:EDGYEntity {
+        id: 'ZONE-' + toString(timestamp()),
+        name: $name,
+        risk_level: $risk_level,
+        dangers_identifies: $dangers_identifies,
+        epi_requis: $epi_requis,
+        created_at: datetime()
+    })
+    RETURN z.id AS id, z.name AS name
     """
     
-    try:
-        results = neo4j_conn.execute_query(query, {"terme": q})
-        return {"results": results, "query": q}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    result = db.execute_query(query, zone.dict())
+    if result:
+        return {"success": True, "data": result[0]}
+    raise HTTPException(status_code=500, detail="Erreur création zone")
 
-
-@app.get("/api/v1/search/risks", tags=["Recherche"])
-async def search_risks(
-    q: str = Query(..., min_length=2, description="Mot-clé de recherche")
-):
-    """
-    🔍 Recherche de risques par mot-clé
-    """
+@app.post("/api/v1/cartography/risk", tags=["🗺️ Cartographie"])
+async def create_risk(risk: RiskCreate):
+    """Créer un risque"""
+    if not db.connected:
+        raise HTTPException(status_code=503, detail="Neo4j non connecté")
+    
     query = """
-    MATCH (r:RisqueDanger)
-    WHERE toLower(r.description) CONTAINS toLower($terme)
-    RETURN r.description AS risque, r.categorie AS categorie, 
-           r.probabilite * r.gravite AS score
-    ORDER BY score DESC
-    LIMIT 30
+    CREATE (r:RisqueDanger:EDGYEntity {
+        id: 'RISK-' + toString(timestamp()),
+        description: $description,
+        categorie: $categorie,
+        probabilite: $probabilite,
+        gravite: $gravite,
+        score: $probabilite * $gravite,
+        created_at: datetime()
+    })
+    RETURN r.id AS id, r.description AS description, r.score AS score
     """
     
-    try:
-        results = neo4j_conn.execute_query(query, {"terme": q})
-        return {"results": results, "query": q}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    result = db.execute_query(query, risk.dict())
+    if result:
+        return {"success": True, "data": result[0]}
+    raise HTTPException(status_code=500, detail="Erreur création risque")
 
-
-@app.post("/api/v1/cypher/execute", response_model=CypherResponse, tags=["Cypher"])
-async def execute_cypher(request: CypherRequest):
-    """
-    ⚡ Exécuter une requête Cypher personnalisée
+@app.post("/api/v1/cartography/import", tags=["🗺️ Cartographie"])
+async def import_cartography(data: CartographyImport):
+    """Importer une cartographie complète (JSON du générateur web)"""
+    if not db.connected:
+        raise HTTPException(status_code=503, detail="Neo4j non connecté")
     
-    ⚠️ Attention: Seules les requêtes en lecture (MATCH) sont autorisées.
-    """
-    import time
+    counts = {"organizations": 0, "zones": 0, "teams": 0, "roles": 0, "persons": 0, "risks": 0}
     
-    # Validation de sécurité
-    query_upper = request.query.upper()
-    forbidden = ["CREATE", "DELETE", "SET", "REMOVE", "MERGE", "DROP", "DETACH"]
-    for word in forbidden:
-        if word in query_upper:
-            raise HTTPException(
-                status_code=403, 
-                detail=f"Opération interdite: {word}. Seules les requêtes MATCH sont autorisées."
-            )
+    # Organisations
+    for org in data.organizations:
+        query = """
+        CREATE (o:Organization:EDGYEntity {
+            id: $id,
+            name: $name,
+            sector_scian: $sector_scian,
+            nb_employes: $nb_employes,
+            region_ssq: $region_ssq,
+            created_at: datetime()
+        })
+        """
+        params = {
+            "id": org.get("id", "ORG-" + str(int(__import__('time').time()))),
+            "name": org.get("name", ""),
+            "sector_scian": org.get("sector_scian", ""),
+            "nb_employes": int(str(org.get("nb_employes", 0) or 0)),
+            "region_ssq": org.get("region_ssq", "")
+        }
+        if db.execute_write(query, params):
+            counts["organizations"] += 1
     
-    try:
-        start = time.time()
-        results = neo4j_conn.execute_query(request.query, request.params)
-        elapsed = (time.time() - start) * 1000
-        
-        return CypherResponse(
-            success=True,
-            data=results,
-            count=len(results),
-            execution_time_ms=round(elapsed, 2)
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+    # Zones
+    for zone in data.zones:
+        query = """
+        CREATE (z:Zone:EDGYEntity {
+            id: $id,
+            name: $name,
+            risk_level: coalesce($risk_level, 'moyen'),
+            dangers_identifies: coalesce($dangers_identifies, []),
+            epi_requis: coalesce($epi_requis, []),
+            created_at: datetime()
+        })
+        """
+        if db.execute_write(query, zone):
+            counts["zones"] += 1
+    
+    # Teams
+    for team in data.teams:
+        query = """
+        CREATE (t:Team:EDGYEntity {
+            id: $id,
+            name: $name,
+            department: coalesce($department, ''),
+            created_at: datetime()
+        })
+        """
+        if db.execute_write(query, team):
+            counts["teams"] += 1
+    
+    # Roles
+    for role in data.roles:
+        query = """
+        CREATE (r:Role:EDGYEntity {
+            id: $id,
+            name: $name,
+            niveau_hierarchique: coalesce($niveau_hierarchique, 1),
+            created_at: datetime()
+        })
+        """
+        if db.execute_write(query, role):
+            counts["roles"] += 1
+    
+    # Persons
+    for person in data.persons:
+        query = """
+        CREATE (p:Person:EDGYEntity {
+            id: $id,
+            matricule: $matricule,
+            department: coalesce($department, ''),
+            age_groupe: coalesce($age_groupe, ''),
+            certifications_sst: coalesce($certifications_sst, []),
+            created_at: datetime()
+        })
+        """
+        if db.execute_write(query, person):
+            counts["persons"] += 1
+    
+    # Risks
+    for risk in data.risks:
+        query = """
+        CREATE (r:RisqueDanger:EDGYEntity {
+            id: $id,
+            description: $description,
+            categorie: $categorie,
+            probabilite: $probabilite,
+            gravite: $gravite,
+            score: $score,
+            created_at: datetime()
+        })
+        """
+        try:
+            prob = int(str(risk.get("probabilite", 1)))
+        except:
+            prob = 1
+        try:
+            grav = int(str(risk.get("gravite", 1)))
+        except:
+            grav = 1
+        params = {
+            "id": risk.get("id", "RISK-" + str(int(__import__('time').time()))),
+            "description": risk.get("description", ""),
+            "categorie": risk.get("categorie", ""),
+            "probabilite": prob,
+            "gravite": grav,
+            "score": prob * grav
+        }
+        if db.execute_write(query, params):
+            counts["risks"] += 1
+    
+    return {"success": True, "imported": counts}
 
 # ============================================================================
-# ENDPOINTS: EXPORT ET DASHBOARD
+# ENDPOINTS - EXPORT
 # ============================================================================
 
-@app.get("/api/v1/export/dashboard-data", tags=["Export"])
-async def get_dashboard_data():
-    """
-    📊 Données complètes pour dashboard (tous les graphiques)
-    """
+@app.get("/api/v1/export/dashboard-data", tags=["📤 Export"])
+async def export_dashboard_data():
+    """Données complètes pour dashboard"""
+    if not db.connected:
+        return {"error": "Neo4j non connecté"}
+    
     data = {}
     
-    # Organisations par secteur
-    try:
-        results = neo4j_conn.execute_query("""
-            MATCH (o:Organization)
-            WHERE o.sector_scian IS NOT NULL
-            RETURN o.sector_scian AS label, count(o) AS value
-            ORDER BY value DESC
-        """)
-        data["orgs_by_sector"] = results
-    except:
-        data["orgs_by_sector"] = []
+    # Stats
+    stats = await get_stats()
+    data["stats"] = stats.dict()
     
-    # Zones par niveau
-    try:
-        results = neo4j_conn.execute_query("""
-            MATCH (z:Zone)
-            WHERE z.risk_level IS NOT NULL
-            RETURN z.risk_level AS label, count(z) AS value
-        """)
-        data["zones_by_level"] = results
-    except:
-        data["zones_by_level"] = []
+    # Secteurs
+    data["sectors"] = await get_sectors()
     
     # Risques par catégorie
-    try:
-        results = neo4j_conn.execute_query("""
-            MATCH (r:RisqueDanger)
-            WHERE r.categorie IS NOT NULL
-            RETURN r.categorie AS label, count(r) AS value,
-                   round(avg(r.probabilite * r.gravite) * 100) / 100 AS score
-            ORDER BY value DESC
-        """)
-        data["risks_by_category"] = results
-    except:
-        data["risks_by_category"] = []
+    data["risks_by_category"] = await get_risk_categories()
     
-    # Top organisations
-    try:
-        results = neo4j_conn.execute_query("""
-            MATCH (o:Organization)
-            WHERE o.nb_employes IS NOT NULL AND o.nb_employes > 0
-            RETURN o.name AS label, o.nb_employes AS value, o.sector_scian AS category
-            ORDER BY value DESC
-            LIMIT 25
-        """)
-        data["top_orgs"] = results
-    except:
-        data["top_orgs"] = []
+    # Zones
+    data["zones"] = await get_zones()
+    
+    # Alertes
+    data["alerts"] = await get_alerts()
     
     return data
-
 
 # ============================================================================
 # MAIN
@@ -1165,6 +806,5 @@ async def get_dashboard_data():
 
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 Démarrage SafetyGraph API sur http://localhost:8002")
-    print("📖 Documentation: http://localhost:8002/docs")
-    uvicorn.run(app, host="0.0.0.0", port=8002)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
